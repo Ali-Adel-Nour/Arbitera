@@ -1,12 +1,6 @@
-=
-# ------------------------------------------------------------------------------
 # MEMBER 1: Blockchain & Backend Engineer
-# ------------------------------------------------------------------------------
-# Smart contracts, Hardhat configuration, Hedera/Arc deployments, and The Graph
 /blockchain/                  @Ali-Adel-Nour
 /subgraph/                    @Ali-Adel-Nour
-
-# Backend server, API routes, database/services, and on-chain oracle client
 /backend/                     @Ali-Adel-Nour
 
 # ------------------------------------------------------------------------------
