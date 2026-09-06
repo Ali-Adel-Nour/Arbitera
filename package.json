@@ -1,0 +1,21 @@
+{
+  "name": "arbiter-ai-escrow-protocol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "blockchain",
+    "backend",
+    "frontend",
+    "mcp-server",
+    "simulation-agents"
+  ],
+  "scripts": {
+    "compile:contracts": "npm run compile --workspace=@arbiter/blockchain",
+    "test:contracts": "npm test --workspace=@arbiter/blockchain",
+    "dev:backend": "npm run dev --workspace=@arbiter/backend",
+    "dev:frontend": "npm run dev --workspace=@arbiter/frontend",
+    "dev:mcp": "npm run dev --workspace=@arbiter/mcp-server",
+    "demo": "npm run demo --workspace=@arbiter/simulation-agents"
+  }
+}

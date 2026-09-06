@@ -1,0 +1,9 @@
+{
+  "name": "@arbiter/simulation-agents",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/run-court-simulation.ts"
+  }
+}
