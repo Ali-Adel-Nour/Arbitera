@@ -8,5 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "mocha"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0"
   }
 }
