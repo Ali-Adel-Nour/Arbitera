@@ -12,6 +12,11 @@ artifacts
 **/artifacts
 cache
 **/cache
+coverage/
+coverage.json
+.nyc_output/
+types
+
 
 # Typechain output
 /types
