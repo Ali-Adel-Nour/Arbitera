@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "demo": "tsx src/run-court-simulation.ts"
+    "demo": "npm run build:deps && node --experimental-strip-types src/run-court-simulation.ts",
+    "build:deps": "npm run build --workspace=@arbiter/backend && npm run build --workspace=@arbiter/mcp-server"
   }
 }

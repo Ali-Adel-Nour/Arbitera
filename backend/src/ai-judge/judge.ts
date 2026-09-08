@@ -34,6 +34,15 @@ function parseJudgeResponse(raw: string): JudgeResult {
     throw new Error("Judge response has invalid field types");
   }
 
+  if (
+    (result.approved && result.verdict !== "PASS") ||
+    (!result.approved && result.verdict !== "FAIL")
+  ) {
+    throw new Error(
+      "Judge response verdict does not match approved flag"
+    );
+  }
+
   return {
     approved: result.approved,
     verdict: result.verdict,
@@ -45,13 +54,20 @@ export async function judgeDeliverable(
   input: JudgeInput
 ): Promise<JudgeResult> {
   const apiKey = process.env.LLM_API_KEY;
-  const baseUrl = process.env.LLM_BASE_URL ?? "https://api.openai.com/v1";
+  const baseUrl =
+    process.env.LLM_BASE_URL ?? "https://api.openai.com/v1";
   const model = process.env.LLM_MODEL ?? "gpt-4o-mini";
+  const modelVersion = process.env.LLM_MODEL_VERSION ?? model;
 
   if (!apiKey) {
     throw new Error("Missing LLM_API_KEY");
   }
 
+  const evaluationPrompt = buildJudgePrompt(
+    input.task,
+    input.acceptanceCriteria,
+    input.deliverable
+  );
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -69,11 +85,7 @@ export async function judgeDeliverable(
         },
         {
           role: "user",
-          content: buildJudgePrompt(
-            input.task,
-            input.acceptanceCriteria,
-            input.deliverable
-          ),
+          content: evaluationPrompt,
         },
       ],
     }),
@@ -99,5 +111,11 @@ export async function judgeDeliverable(
     throw new Error("LLM returned an empty response");
   }
 
-  return parseJudgeResponse(content);
+  return {
+    ...parseJudgeResponse(content),
+    evaluationPrompt,
+    rawResponse: content,
+    modelId: model,
+    modelVersion,
+  };
 }

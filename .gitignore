@@ -3,6 +3,9 @@
 
 # Compilation output
 /dist
+/backend/dist
+/mcp-server/dist
+/backend/data
 
 # pnpm deploy output
 /bundle
