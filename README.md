@@ -1,6 +1,6 @@
 # Arbitra
 
-Arbitra is an AI-powered escrow and arbitration protocol for autonomous agents. An agent can query another agent's persisted settlement reputation over MCP, decide whether to hire it, fund an escrow, submit a deliverable, and use the AI Judge to produce an auditable PASS/FAIL verdict before the authorized oracle resolves the existing escrow contract.
+Arbitra is a trust-minimized, auditable AI escrow and arbitration protocol for autonomous agents. Agent A can query Agent B's persisted settlement reputation over MCP, decide whether to hire B, fund an escrow, and use the AI Judge to evaluate a submitted deliverable before an authorized oracle resolves the existing escrow contract.
 
 ## Product flow
 
@@ -11,7 +11,17 @@ Agent A -> MCP reputation query -> hire / do not hire decision
         -> PASS pays seller, FAIL refunds buyer -> reputation history
 ```
 
-The AI court is trust-minimized, not trustless: the escrow contract enforces fund custody and oracle authorization, while the off-chain LLM and backend oracle key remain explicit trust boundaries. Each verdict stores the exact prompt, rubric, deliverable, model metadata, raw response, structured result, reasoning, timestamp, and deterministic `verdictHash`. The timestamp is recorded for auditability but excluded from the deterministic hash so identical inputs produce identical hashes.
+This resolves the agent-economy escrow problem: payment before delivery exposes buyers to poor work, while delivery before payment exposes sellers to non-payment. The escrow contract holds funds and enforces state transitions; the AI court evaluates the agreed criteria and provides an auditable settlement input.
+
+The AI court is not fully trustless. The off-chain LLM and backend oracle key remain explicit trust boundaries. Each verdict records the exact evaluation prompt, acceptance rubric, seller deliverable, model ID/version, raw LLM response, structured PASS/FAIL result, score, reasoning, timestamp, and deterministic `verdictHash`. The timestamp is retained for auditability but excluded from the deterministic hash so identical canonical inputs produce identical hashes.
+
+## Escrow lifecycle
+
+1. Agent A specifies acceptance criteria, a future deadline, seller, and payment, then funds `ArbiterEscrow`.
+2. Agent B submits a deliverable before the contract deadline.
+3. The backend AI Judge evaluates the deliverable against the original task and rubric, with prompt-injection defenses for untrusted deliverable text.
+4. The authorized oracle submits the verdict hash through `resolveEscrow`: PASS pays the seller and FAIL refunds the buyer.
+5. The persisted verdict becomes reputation data for future agent hiring decisions.
 
 ## Repository layout
 
@@ -21,9 +31,11 @@ The AI court is trust-minimized, not trustless: the escrow contract enforces fun
 - `simulation-agents/` — reproducible MCP reputation decision demo.
 - `frontend/` — frontend workspace owned by the frontend team.
 
-The current reputation index is the backend's append-only verdict JSONL store. Its response shape is intentionally suitable for replacing the storage reader with a The Graph/subgraph query later; no deployable subgraph is currently in this repository, so the MVP does not claim Graph-backed production indexing.
+The current MVP reputation index is the backend's append-only verdict JSONL store. Its response shape is compatible with replacing the storage reader with a The Graph/subgraph query later, and the contract already emits escrow lifecycle events suitable for indexing. No production The Graph subgraph is currently implemented, so this README does not claim Graph-backed reputation today.
 
 ## Install and build
+
+Prerequisites: Node.js 22+ and npm 10+.
 
 From PowerShell at the repository root:
 
@@ -50,7 +62,7 @@ agent-b: 1/4 successful, 25% success, decision = DO NOT HIRE
 agent-c: 4/4 successful, 100% success, decision = HIRE
 ```
 
-The fixture is clearly local demo history; production reputation comes from verdicts appended by `POST /api/judge` or a future indexed event reader.
+The fixture is clearly local demo history; production reputation comes from verdicts appended by `POST /api/judge` or a future indexed event reader. The hiring decision is calculated from the structured MCP response, not hardcoded per agent.
 
 ## Backend API
 
@@ -76,6 +88,7 @@ It returns the auditable verdict and appends it to `VERDICT_STORE_PATH` (default
 ```powershell
 npm.cmd test --workspace=@arbiter/backend
 npm.cmd test --workspace=@arbiter/mcp-server
+npm.cmd run demo --workspace=@arbiter/simulation-agents
 npm.cmd run compile:contracts
 git diff --check
 ```
@@ -83,3 +96,7 @@ git diff --check
 The backend tests cover PASS and FAIL verdicts, malformed and expired input, deterministic hashing, hash changes for audited input changes, reputation responses, and CORS settlement headers. The MCP test covers a structured reputation query and hiring decision threshold.
 
 On some Windows/Node 24 environments Hardhat can fail before compilation with `uv_os_get_passwd returned ENOMEM`; that is an environment/libuv failure, not a Solidity diagnostic. The backend and MCP suites do not require Hardhat.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
