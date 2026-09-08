@@ -4,15 +4,22 @@ import {
   type ServerResponse,
 } from "node:http";
 
-import { judgeDeliverable } from "./ai-judge/index.js";
+import {
+  evaluateDeal,
+  judgeDeliverable,
+} from "./ai-judge/index.js";
 import { settleEscrow } from "./oracle.js";
+import { getReputation } from "./reputation.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
 function setCorsHeaders(response: ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, X-Arbitra-Internal-Key"
+  );
 }
 
 function sendJson(
@@ -74,6 +81,71 @@ function validateJudgeInput(
   );
 }
 
+function isBadRequestError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === "Request body is empty" ||
+      error.message === "Request body must be valid JSON")
+  );
+}
+
+interface ApiJudgeInput {
+  dealId: string;
+  acceptanceCriteria: string[];
+  deliverable: string;
+  deadline: string | number;
+  buyer?: string;
+  seller?: string;
+  taskCategory?: string;
+}
+
+function parseDeadline(value: unknown): string | number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return undefined;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : value;
+}
+
+function validateApiJudgeInput(
+  body: unknown
+): body is ApiJudgeInput {
+  if (typeof body !== "object" || body === null) {
+    return false;
+  }
+
+  const input = body as Record<string, unknown>;
+  const deadline = parseDeadline(input.deadline);
+
+  if (deadline === undefined) {
+    return false;
+  }
+
+  return (
+    typeof input.dealId === "string" &&
+    input.dealId.trim().length > 0 &&
+    Array.isArray(input.acceptanceCriteria) &&
+    input.acceptanceCriteria.length > 0 &&
+    input.acceptanceCriteria.every(
+      (item) => typeof item === "string" && item.trim().length > 0
+    ) &&
+    typeof input.deliverable === "string" &&
+    input.deliverable.trim().length > 0 &&
+    (input.buyer === undefined || typeof input.buyer === "string") &&
+    (input.seller === undefined || typeof input.seller === "string") &&
+    (input.taskCategory === undefined || typeof input.taskCategory === "string") &&
+    (typeof deadline === "number" || typeof deadline === "string") &&
+    new Date(
+      typeof deadline === "number" ? deadline * 1000 : deadline
+    ).getTime() > Date.now()
+  );
+}
+
 function validateSettlementInput(
   body: unknown
 ): body is {
@@ -111,7 +183,7 @@ function isAuthorizedSettlementRequest(
   return providedKey === expectedKey;
 }
 
-const server = createServer(
+export const server = createServer(
   async (
     request: IncomingMessage,
     response: ServerResponse
@@ -129,6 +201,109 @@ const server = createServer(
         status: "ok",
         service: "arbitra-ai-judge",
       });
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/api/judge") {
+      try {
+        const body = await readJsonBody(request);
+
+        if (!validateApiJudgeInput(body)) {
+          sendJson(response, 400, {
+            success: false,
+            error:
+              "Invalid input. Expected dealId, acceptanceCriteria[], deliverable, and deadline.",
+          });
+          return;
+        }
+
+        sendJson(response, 200, await evaluateDeal(body));
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown server error";
+
+        sendJson(response, isBadRequestError(error) ? 400 : 502, {
+          success: false,
+          error: `AI Judge request failed: ${message}`,
+        });
+      }
+
+      return;
+    }
+
+    if (request.method === "GET" && request.url?.startsWith("/api/reputation/")) {
+      let agent: string;
+      try {
+        const path = new URL(request.url, "http://localhost").pathname;
+        agent = decodeURIComponent(path.slice("/api/reputation/".length));
+      } catch {
+        sendJson(response, 400, { error: "Agent must be URL encoded" });
+        return;
+      }
+
+      if (!agent.trim()) {
+        sendJson(response, 400, { error: "Agent is required" });
+        return;
+      }
+      try {
+        sendJson(response, 200, await getReputation(agent));
+      } catch (error) {
+        sendJson(response, 500, { error: error instanceof Error ? error.message : "Unable to read reputation" });
+      }
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      request.url === "/api/judge-and-settle"
+    ) {
+      if (!process.env.ARBITRA_INTERNAL_KEY) {
+        sendJson(response, 503, {
+          success: false,
+          error: "Settlement endpoint is not configured",
+        });
+        return;
+      }
+
+      if (!isAuthorizedSettlementRequest(request)) {
+        sendJson(response, 401, {
+          success: false,
+          error: "Unauthorized settlement request",
+        });
+        return;
+      }
+
+      try {
+        const body = await readJsonBody(request);
+
+        if (!validateApiJudgeInput(body)) {
+          sendJson(response, 400, {
+            success: false,
+            error:
+              "Invalid input. Expected dealId, acceptanceCriteria[], deliverable, and a future deadline.",
+          });
+          return;
+        }
+
+        const verdict = await evaluateDeal(body);
+        const settlement = await settleEscrow(
+          body.dealId,
+          verdict.approved,
+          verdict.reasoning,
+          verdict.verdictHash
+        );
+
+        sendJson(response, 200, { verdict, settlement });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown server error";
+
+        sendJson(response, isBadRequestError(error) ? 400 : 502, {
+          success: false,
+          error: `AI Judge settlement failed: ${message}`,
+        });
+      }
+
       return;
     }
 
@@ -241,8 +416,10 @@ const server = createServer(
   }
 );
 
-server.listen(PORT, () => {
-  console.log(
-    `Arbitra AI Judge API listening on http://localhost:${PORT}`
-  );
-});
+if (process.env.ARBITRA_NO_LISTEN !== "true") {
+  server.listen(PORT, () => {
+    console.log(
+      `Arbitra AI Judge API listening on http://localhost:${PORT}`
+    );
+  });
+}

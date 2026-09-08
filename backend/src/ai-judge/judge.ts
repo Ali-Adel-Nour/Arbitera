@@ -57,11 +57,17 @@ export async function judgeDeliverable(
   const baseUrl =
     process.env.LLM_BASE_URL ?? "https://api.openai.com/v1";
   const model = process.env.LLM_MODEL ?? "gpt-4o-mini";
+  const modelVersion = process.env.LLM_MODEL_VERSION ?? model;
 
   if (!apiKey) {
     throw new Error("Missing LLM_API_KEY");
   }
 
+  const evaluationPrompt = buildJudgePrompt(
+    input.task,
+    input.acceptanceCriteria,
+    input.deliverable
+  );
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -79,11 +85,7 @@ export async function judgeDeliverable(
         },
         {
           role: "user",
-          content: buildJudgePrompt(
-            input.task,
-            input.acceptanceCriteria,
-            input.deliverable
-          ),
+          content: evaluationPrompt,
         },
       ],
     }),
@@ -109,5 +111,11 @@ export async function judgeDeliverable(
     throw new Error("LLM returned an empty response");
   }
 
-  return parseJudgeResponse(content);
+  return {
+    ...parseJudgeResponse(content),
+    evaluationPrompt,
+    rawResponse: content,
+    modelId: model,
+    modelVersion,
+  };
 }

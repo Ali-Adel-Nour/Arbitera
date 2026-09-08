@@ -1,0 +1,8 @@
+{"dealId":"demo-b-1","seller":"agent-b","approved":false,"score":0,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000001","timestamp":"2026-09-01T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-b-2","seller":"agent-b","approved":false,"score":0,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000002","timestamp":"2026-09-02T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-b-3","seller":"agent-b","approved":true,"score":100,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000003","timestamp":"2026-09-03T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-b-4","seller":"agent-b","approved":false,"score":0,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000004","timestamp":"2026-09-04T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-c-1","seller":"agent-c","approved":true,"score":100,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000011","timestamp":"2026-09-01T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-c-2","seller":"agent-c","approved":true,"score":100,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000012","timestamp":"2026-09-02T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-c-3","seller":"agent-c","approved":true,"score":100,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000013","timestamp":"2026-09-03T10:00:00.000Z","taskCategory":"coding"}
+{"dealId":"demo-c-4","seller":"agent-c","approved":true,"score":100,"verdictHash":"0x0000000000000000000000000000000000000000000000000000000000000014","timestamp":"2026-09-04T10:00:00.000Z","taskCategory":"coding"}

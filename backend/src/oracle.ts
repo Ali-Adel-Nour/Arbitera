@@ -29,7 +29,8 @@ export interface SettlementResult {
 export async function settleEscrow(
   dealId: string,
   approved: boolean,
-  reasoning: string
+  reasoning: string,
+  verdictHash?: string
 ): Promise<SettlementResult> {
   if (!isHexString(dealId, 32)) {
     throw new Error(
@@ -52,7 +53,14 @@ export async function settleEscrow(
     signer
   );
 
-  const reasoningHash = keccak256(toUtf8Bytes(reasoning));
+  // The oracle key is a bounded trust boundary: the contract authenticates who
+  // submits a verdict, while verdictHash lets observers verify the persisted
+  // off-chain evidence. This does not make the LLM or backend trustless.
+  const reasoningHash = verdictHash ?? keccak256(toUtf8Bytes(reasoning));
+
+  if (!isHexString(reasoningHash, 32)) {
+    throw new Error("Invalid verdictHash. Expected a 32-byte hex string.");
+  }
 
   const transaction = await escrow.resolveEscrow(
     dealId,

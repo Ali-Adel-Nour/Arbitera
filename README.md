@@ -1,57 +1,85 @@
-# Sample Hardhat 3 Project (`mocha` and `ethers`)
+# Arbitra
 
-This project showcases a Hardhat 3 project using `mocha` for tests and the `ethers` library for Ethereum interactions.
+Arbitra is an AI-powered escrow and arbitration protocol for autonomous agents. An agent can query another agent's persisted settlement reputation over MCP, decide whether to hire it, fund an escrow, submit a deliverable, and use the AI Judge to produce an auditable PASS/FAIL verdict before the authorized oracle resolves the existing escrow contract.
 
-To learn more about Hardhat 3, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3](https://hardhat.org/hardhat3-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+## Product flow
 
-## Project Overview
-
-This example project includes:
-
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using `mocha` and ethers.js
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
-
-## Usage
-
-### Running Tests
-
-To run all the tests in the project, execute the following command:
-
-```shell
-npx hardhat test
+```text
+Agent A -> MCP reputation query -> hire / do not hire decision
+        -> USDC escrow -> seller deliverable -> AI Judge rubric evaluation
+        -> canonical verdict + deterministic hash -> oracle settlement
+        -> PASS pays seller, FAIL refunds buyer -> reputation history
 ```
 
-You can also selectively run the Solidity or `mocha` tests:
+The AI court is trust-minimized, not trustless: the escrow contract enforces fund custody and oracle authorization, while the off-chain LLM and backend oracle key remain explicit trust boundaries. Each verdict stores the exact prompt, rubric, deliverable, model metadata, raw response, structured result, reasoning, timestamp, and deterministic `verdictHash`. The timestamp is recorded for auditability but excluded from the deterministic hash so identical inputs produce identical hashes.
 
-```shell
-npx hardhat test solidity
-npx hardhat test mocha
+## Repository layout
+
+- `blockchain/` — existing `ArbiterEscrow` contract, interfaces, tests, and deployment module.
+- `backend/` — AI Judge adapter, auditable verdict JSONL store, reputation API, and escrow oracle integration.
+- `mcp-server/` — MCP tool `get_agent_reputation` for agent-to-agent hiring decisions.
+- `simulation-agents/` — reproducible MCP reputation decision demo.
+- `frontend/` — frontend workspace owned by the frontend team.
+
+The current reputation index is the backend's append-only verdict JSONL store. Its response shape is intentionally suitable for replacing the storage reader with a The Graph/subgraph query later; no deployable subgraph is currently in this repository, so the MVP does not claim Graph-backed production indexing.
+
+## Install and build
+
+From PowerShell at the repository root:
+
+```powershell
+npm.cmd install
+npm.cmd run build --workspace=@arbiter/backend
+npm.cmd run build --workspace=@arbiter/mcp-server
 ```
 
-### Make a deployment to Sepolia
+Copy `backend/.env.example` to a local environment file and set the LLM and escrow variables before using the live judge or settlement route. Never commit API keys or private keys.
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+## Run the agent reputation demo
 
-To run the deployment to a local chain:
+The demo starts the backend against reproducible persisted settlement history, then queries the backend through the MCP server. Agent A refuses the poor performer and hires the strong performer based on returned data:
 
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
+```powershell
+npm.cmd run demo --workspace=@arbiter/simulation-agents
 ```
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+Expected decisions include:
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+```text
+agent-b: 1/4 successful, 25% success, decision = DO NOT HIRE
+agent-c: 4/4 successful, 100% success, decision = HIRE
 ```
 
-After setting the variable, you can run the deployment with the Sepolia network:
+The fixture is clearly local demo history; production reputation comes from verdicts appended by `POST /api/judge` or a future indexed event reader.
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+## Backend API
+
+`POST /api/judge` accepts:
+
+```json
+{
+  "dealId": "deal-123",
+  "acceptanceCriteria": ["The report contains the requested analysis."],
+  "deliverable": "The requested analysis is included.",
+  "deadline": "2099-01-01T00:00:00.000Z",
+  "seller": "agent-b",
+  "taskCategory": "coding"
+}
 ```
+
+It returns the auditable verdict and appends it to `VERDICT_STORE_PATH` (default `backend/data/verdicts.jsonl`). `GET /api/reputation/:agent` returns total judged deals, successes, failures, success/failure rates, recency-weighted reliability, task-category breakdown, and settlement history. The MCP server forwards this same structured response through `get_agent_reputation`.
+
+`POST /api/judge-and-settle` accepts the same input, requires the `X-Arbitra-Internal-Key` header, and submits the deterministic `verdictHash` to the existing `resolveEscrow` function. The API expects a bytes32 hex `dealId` for actual on-chain settlement. The legacy `/judge` and `/judge-and-settle` routes remain available for compatibility.
+
+## Tests and contract verification
+
+```powershell
+npm.cmd test --workspace=@arbiter/backend
+npm.cmd test --workspace=@arbiter/mcp-server
+npm.cmd run compile:contracts
+git diff --check
+```
+
+The backend tests cover PASS and FAIL verdicts, malformed and expired input, deterministic hashing, hash changes for audited input changes, reputation responses, and CORS settlement headers. The MCP test covers a structured reputation query and hiring decision threshold.
+
+On some Windows/Node 24 environments Hardhat can fail before compilation with `uv_os_get_passwd returned ENOMEM`; that is an environment/libuv failure, not a Solidity diagnostic. The backend and MCP suites do not require Hardhat.
