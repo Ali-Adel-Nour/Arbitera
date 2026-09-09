@@ -8,7 +8,12 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run check:copy && npm run check:design",
+    "build": "node scripts/check-copy.mjs && node scripts/check-design.mjs && next build && node scripts/check-bundle.mjs",
     "start": "next start",
+    "check:copy": "node scripts/check-copy.mjs",
+    "check:design": "node scripts/check-design.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
