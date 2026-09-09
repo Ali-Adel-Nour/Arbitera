@@ -44,3 +44,9 @@ types
 
 
 blockchain/remappings.txt
+
+# Workspace dependencies in any package, not just the root
+node_modules/
+
+# Next.js build output
+.next/
