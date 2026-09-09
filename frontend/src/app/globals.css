@@ -1,0 +1,330 @@
+@import 'tailwindcss';
+
+/* ===========================================================================
+ * Arbitra design tokens — the sole token-declaration site in the application.
+ *
+ * Tailwind v4 is CSS-first: this file is the theme. `tailwind.config.ts` is
+ * vestigial and is not loaded, and there is no `@config` directive.
+ *
+ * Declaration is not use. `scripts/check-design.mjs` (task 2.3) exempts this
+ * file from the mono-confinement and ruling-surface-confinement rules for that
+ * reason: the tokens have to be born somewhere. Every other file under `src/`
+ * consumes them, and no other file declares one.
+ *
+ * `@theme static` rather than `@theme` so that every token is emitted even
+ * before a consumer exists. Between this task and task 10.2 most of these have
+ * no call site, and a token that vanishes from the stylesheet cannot be
+ * inspected in devtools or asserted on by a test.
+ * ======================================================================== */
+
+@theme static {
+  /* -------------------------------------------------------------------------
+   * Families
+   *
+   * The real faces arrive from `next/font/google` via `src/app/fonts.ts`, which
+   * sets `--font-grotesk` and `--font-mono` on the document element. next/font
+   * emits its declarations unlayered, so they win over these layered theme
+   * defaults on the same element; the fallback stacks below are what renders if
+   * the class is ever missing.
+   * ---------------------------------------------------------------------- */
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+
+  /* -------------------------------------------------------------------------
+   * Type scale — eight named steps, and only eight.
+   *
+   * Every text element takes its size from one of these. There is no arbitrary
+   * `text-[15px]` anywhere, and `check-design.mjs` greps for bracket-literal
+   * font sizes.
+   * ---------------------------------------------------------------------- */
+
+  /* 1 — field labels, column headers, source labels */
+  --text-caption: 0.6875rem; /* 11px */
+  --text-caption--line-height: 1rem; /* 16px */
+  --text-caption--font-weight: 500;
+  --text-caption--letter-spacing: 0.012em;
+
+  /* 2 — recorded metadata, timestamps, footnotes */
+  --text-meta: 0.75rem; /* 12px */
+  --text-meta--line-height: 1.125rem; /* 18px */
+  --text-meta--font-weight: 400;
+  --text-meta--letter-spacing: 0.006em;
+
+  /* 3 — docket rows, log lines, all machine values */
+  --text-record: 0.8125rem; /* 13px */
+  --text-record--line-height: 1.25rem; /* 20px */
+  --text-record--font-weight: 400;
+  --text-record--letter-spacing: 0;
+
+  /* 4 — prose, exhibit bodies */
+  --text-body: 0.9375rem; /* 15px */
+  --text-body--line-height: 1.5rem; /* 24px */
+  --text-body--font-weight: 400;
+  --text-body--letter-spacing: 0;
+
+  /* 5 — one paragraph per screen, no more */
+  --text-lede: 1.125rem; /* 18px */
+  --text-lede--line-height: 1.6875rem; /* 27px */
+  --text-lede--font-weight: 400;
+  --text-lede--letter-spacing: -0.006em;
+
+  /* 6 — exhibit and section headers */
+  --text-heading: 1.3125rem; /* 21px */
+  --text-heading--line-height: 1.75rem; /* 28px */
+  --text-heading--font-weight: 600;
+  --text-heading--letter-spacing: -0.01em;
+
+  /* 7 — screen titles. 28px at >=480px, clamping to 24px at 375px. */
+  --text-screen: clamp(1.5rem, 0.6071rem + 3.8095vw, 1.75rem);
+  --text-screen--line-height: 2rem; /* 32px */
+  --text-screen--font-weight: 600;
+  --text-screen--letter-spacing: -0.016em;
+
+  /* 8 — RESERVED. The PASS/FAIL word, once, in `VerdictBanner`.
+   * 52px at >=480px, clamping to 40px at 375px so a one-word ruling cannot
+   * force horizontal overflow on a phone. */
+  --text-ruling: clamp(2.5rem, 11.4286vw - 0.1786rem, 3.25rem);
+  --text-ruling--line-height: 1; /* 52px at the 52px size */
+  --text-ruling--font-weight: 700;
+  --text-ruling--letter-spacing: -0.024em;
+
+  /* The ruling step is also the only place a width axis is used in the
+   * application. Kept as its own token because Tailwind's font-size sub-keys
+   * cover line-height, weight, and tracking but not stretch; `VerdictBanner`
+   * applies it alongside `text-ruling`. */
+  --ruling-stretch: 96%;
+
+  /* NO STEP BETWEEN 28px AND 52px. The gap is deliberate and load-bearing.
+   * There is no 34px and no 40px step, so a screen cannot creep toward the
+   * ruling step by reaching for the size next to it — the only size above
+   * `screen` is the one reserved for the verdict word. Adding an intermediate
+   * step here would quietly dismantle the boldness budget that Requirement 8.9
+   * and task 11.4 depend on. */
+
+  /* -------------------------------------------------------------------------
+   * Surfaces and text — paper and ink, not a dark theme.
+   * ---------------------------------------------------------------------- */
+  --paper: #f7f6f2; /* page background */
+  --paper-sunk: #efede7; /* recessed wells: raw model response, log console */
+
+  /* Evidence exhibit bodies. #FDFCF9 rather than pure white ON PURPOSE.
+   * Requirement 8.9 makes the verdict block the application's highest-contrast
+   * surface, and that is a measurement, not an opinion: `--ruling-ink` on
+   * `--ruling-ground` measures 18.62:1 and `--ink` on this surface 17.65:1, so
+   * the ruling block wins by ~0.97. Pure white would raise exhibit body text to
+   * 18.11:1 and cut that margin to ~0.51 — measured, the inequality would still
+   * hold, so this hex is protecting headroom rather than the requirement
+   * itself. Keep it anyway: 0.51 is inside the range where a later nudge to
+   * `--ruling-ground` flips the comparison with no visible symptom and nothing
+   * failing at the point of edit. Do not "clean this up" to #FFFFFF. */
+  --paper-raised: #fdfcf9;
+
+  --ink: #14161a; /* body text, primary rules */
+  --ink-muted: #4a4f58; /* metadata text, excluded-field rules */
+
+  /* Within-record separators. Darkened from a conventional #D8D5CC (~1.4:1) to
+   * clear the 3:1 non-text threshold. The ledger look is the intended
+   * consequence, not a side effect. */
+  --hairline: #8c887c;
+
+  --ruling-ground: #101317; /* verdict banner background. Nowhere else. */
+  --ruling-ink: #ffffff; /* verdict banner text. Nowhere else. */
+
+  /* Tailwind colour namespace, aliasing the canonical tokens above so that
+   * `bg-paper`, `text-ink`, `border-hairline` and friends exist as utilities.
+   * The canonical names are the ones the design document and the property tests
+   * refer to; these are the same values under Tailwind's naming. */
+  --color-paper: var(--paper);
+  --color-paper-sunk: var(--paper-sunk);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-hairline: var(--hairline);
+  --color-ruling-ground: var(--ruling-ground);
+  --color-ruling-ink: var(--ruling-ink);
+
+  /* -------------------------------------------------------------------------
+   * State colours
+   *
+   * Each is an ink, not a highlight, and each is paired with its label text in
+   * every instance. Colour is never the sole carrier of state. `StateChip`
+   * renders a 3px left rule in the ink, the tint as background, and the label in
+   * `--ink` at the `caption` step, which keeps label contrast >=14:1 whichever
+   * state it carries.
+   *
+   * Refunded is BLUE, NOT RED, on purpose. A buyer refund is a correct protocol
+   * outcome, not a failure, and colouring it as one would editorialise. Red is
+   * reserved for `--state-tampered`: a hash mismatch is the single condition in
+   * this interface that means something is actually wrong.
+   * ---------------------------------------------------------------------- */
+  --state-paid: #1f5f3b;
+  --state-paid-tint: #e8f0ea;
+  --state-paid-label: 'Settled — seller paid';
+
+  --state-refunded: #1d4e89; /* blue, see above */
+  --state-refunded-tint: #e7edf5;
+  --state-refunded-label: 'Settled — buyer refunded';
+
+  --state-deliberating: #8a5b00;
+  --state-deliberating-tint: #f5eddc;
+  --state-deliberating-label: 'Deliberating — off-chain';
+
+  --state-expired: #5a5346;
+  --state-expired-tint: #edebe5;
+  --state-expired-label: 'Expired — refundable to buyer';
+
+  --state-tampered: #9b1c1c; /* red, reserved for mismatch only */
+  --state-tampered-tint: #f6e7e7;
+  --state-tampered-label: 'Mismatch';
+
+  --color-state-paid: var(--state-paid);
+  --color-state-paid-tint: var(--state-paid-tint);
+  --color-state-refunded: var(--state-refunded);
+  --color-state-refunded-tint: var(--state-refunded-tint);
+  --color-state-deliberating: var(--state-deliberating);
+  --color-state-deliberating-tint: var(--state-deliberating-tint);
+  --color-state-expired: var(--state-expired);
+  --color-state-expired-tint: var(--state-expired-tint);
+  --color-state-tampered: var(--state-tampered);
+  --color-state-tampered-tint: var(--state-tampered-tint);
+
+  /* -------------------------------------------------------------------------
+   * Structural rule tokens — seven, each with a meaning.
+   *
+   * These are the interface's primary information channel, not decoration. A
+   * reader who learns the rule styles can tell which fields are inside the
+   * hashed preimage without reading a label. Property 28 asserts that each
+   * token is applied only where its documented meaning holds, so the meaning
+   * travels with the token, here, in the comment above it.
+   * ---------------------------------------------------------------------- */
+
+  /* Shared left-edge inset for the four accent rules. */
+  --rule-inset: 0.75rem; /* 12px */
+
+  /* "This value is bytes-for-bytes inside the hashed preimage." */
+  --rule-hashed-width: 2px;
+  --rule-hashed-style: solid;
+  --rule-hashed-color: var(--ink);
+
+  /* "Recorded metadata. Not in the preimage." */
+  --rule-excluded-width: 1px;
+  --rule-excluded-style: dashed;
+  --rule-excluded-color: var(--ink-muted);
+
+  /* "Computed by this interface. Not read from the protocol." */
+  --rule-derived-width: 1px;
+  --rule-derived-style: dotted;
+  --rule-derived-color: var(--state-deliberating);
+
+  /* "This value does not match its recomputation." */
+  --rule-tampered-width: 2px;
+  --rule-tampered-style: solid;
+  --rule-tampered-color: var(--state-tampered);
+
+  /* "Trust boundary. Above: enforced by the contract. Below: trusted
+   * infrastructure." The only three-part rule in the system, and the one place
+   * a structural device does argumentative work. */
+  --rule-boundary-lead: 3px;
+  --rule-boundary-gap: 2px;
+  --rule-boundary-trail: 1px;
+  --rule-boundary-color: var(--ink);
+  --rule-boundary-gap-color: var(--paper);
+
+  /* "Same record, next field." */
+  --rule-record-width: 1px;
+  --rule-record-style: solid;
+  --rule-record-color: var(--hairline);
+
+  /* "End of one record, start of another." Hairline within a record, full ink
+   * between records: that contrast is what makes a dense list read as a ledger
+   * rather than a table, and it is information — a reader can see where one deal
+   * ends without reading any text. */
+  --rule-instance-width: 1px;
+  --rule-instance-style: solid;
+  --rule-instance-color: var(--ink);
+
+  /* -------------------------------------------------------------------------
+   * Radius, and the absence of shadow.
+   *
+   * Radius 0 everywhere except chips and buttons. There are NO shadow tokens in
+   * this file and no box shadow anywhere in the application: elevation is
+   * expressed by paper tone (`--paper-sunk` < `--paper` < `--paper-raised`) and
+   * rule weight alone. This is not minimalism for its own sake — a shadow
+   * implies a floating object, and a record is not a floating object.
+   * ---------------------------------------------------------------------- */
+  --radius-0: 0;
+  --radius-chip: 2px;
+}
+
+/* ===========================================================================
+ * Rule utilities
+ *
+ * One utility per rule token, named `rule-*` so the token, the utility, and the
+ * meaning share a single searchable stem for `check-design.mjs` and Property 28.
+ * ======================================================================== */
+
+/* "This value is bytes-for-bytes inside the hashed preimage." */
+@utility rule-hashed {
+  border-inline-start: var(--rule-hashed-width) var(--rule-hashed-style) var(--rule-hashed-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Recorded metadata. Not in the preimage." */
+@utility rule-excluded {
+  border-inline-start: var(--rule-excluded-width) var(--rule-excluded-style)
+    var(--rule-excluded-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Computed by this interface. Not read from the protocol." */
+@utility rule-derived {
+  border-inline-start: var(--rule-derived-width) var(--rule-derived-style)
+    var(--rule-derived-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "This value does not match its recomputation." */
+@utility rule-tampered {
+  border-inline-start: var(--rule-tampered-width) var(--rule-tampered-style)
+    var(--rule-tampered-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Trust boundary. Above: enforced by the contract. Below: trusted
+ * infrastructure."
+ *
+ * Three parts on the leading edge: a 3px ink rule as the border, then a 2px
+ * paper gap and a 1px ink rule painted as a padding-box gradient. The gradient
+ * carries the second and third parts rather than a pseudo-element so the rule
+ * survives on elements that already use `::before`, and rather than a box shadow
+ * because the application has none. */
+@utility rule-boundary {
+  border-block-start: var(--rule-boundary-lead) solid var(--rule-boundary-color);
+  padding-block-start: calc(var(--rule-boundary-gap) + var(--rule-boundary-trail));
+  background-clip: padding-box;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rule-boundary-gap-color) 0 var(--rule-boundary-gap),
+    var(--rule-boundary-color) var(--rule-boundary-gap)
+      calc(var(--rule-boundary-gap) + var(--rule-boundary-trail)),
+    transparent calc(var(--rule-boundary-gap) + var(--rule-boundary-trail))
+  );
+  background-repeat: no-repeat;
+  background-position: top left;
+  background-size: 100% calc(var(--rule-boundary-gap) + var(--rule-boundary-trail));
+}
+
+/* "Same record, next field." Full width of its container. */
+@utility rule-record {
+  border-block-end: var(--rule-record-width) var(--rule-record-style) var(--rule-record-color);
+}
+
+/* "End of one record, start of another." Full bleed. */
+@utility rule-instance {
+  border-block-end: var(--rule-instance-width) var(--rule-instance-style)
+    var(--rule-instance-color);
+}
+
+/* The width axis, used once, by the ruling step. */
+@utility ruling-stretch {
+  font-stretch: var(--ruling-stretch);
+}
