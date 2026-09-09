@@ -1,0 +1,405 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Clone the monorepo into the workspace without clobbering `.kiro/specs/`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975185
+      },
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981988113
+      },
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788982128694
+      }
+    ],
+    "1.2 Cut `feat/frontend` from `main` and confirm ignore coverage": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975297
+      },
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788982136966
+      }
+    ],
+    "2.1 Replace the Vite workspace manifest with the Next.js toolchain": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975344
+      }
+    ],
+    "2.2 Add the design token layer": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975379
+      }
+    ],
+    "2.3 Add the three build-gate scripts and wire them into the build chain": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975414
+      }
+    ],
+    "2.4 Write the per-screen review checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975438
+      }
+    ],
+    "2.5 Build the app shell and the trust-boundary statement": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975463
+      }
+    ],
+    "3.1 Declare the backend contract in `types.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975488
+      }
+    ],
+    "3.2 Port canonical hashing to the client in `lib/canonicalize.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975512
+      }
+    ],
+    "3.10 Implement the three-way comparison in `lib/verify.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975545
+      }
+    ],
+    "3.13 Compute the derived metrics in `lib/derive.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975595
+      }
+    ],
+    "3.17 Generate the backend contract document from `types.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975622
+      }
+    ],
+    "4.1 Add runtime shape guards in `lib/guards.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975648
+      }
+    ],
+    "4.3 Map errors to cause and recovery copy in `lib/errorCopy.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975686
+      }
+    ],
+    "4.6 Route all network access through `services/api.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975708
+      }
+    ],
+    "4.10 Make fixture state a pure function of absolute time": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975730
+      }
+    ],
+    "4.13 Compute fixture record hashes with the client canonicalizer": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975757
+      }
+    ],
+    "4.15 Serve fixture data from the Mock_API route handlers": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975787
+      }
+    ],
+    "4.17 Add the shared polling primitive `hooks/usePolling.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975809
+      }
+    ],
+    "5. Checkpoint — the auditable core and the data layer": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975853
+      }
+    ],
+    "6.1 Add the machine value primitives": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975888
+      }
+    ],
+    "6.3 Add the settlement reference in `lib/settlementLink.ts`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975909
+      }
+    ],
+    "6.5 Add the state, empty, error, and loading primitives": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975944
+      }
+    ],
+    "7.1 List agents with drillable trust scores": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981975992
+      }
+    ],
+    "7.3 Add the agent detail view": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976030
+      }
+    ],
+    "7.4 Add the resolutions drill-down route": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976078
+      }
+    ],
+    "7.6 Review `/agents` and its detail routes against the screen checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976115
+      }
+    ],
+    "8.1 Verify the fixture build passes every gate locally": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976137
+      }
+    ],
+    "8.2 Hand control to the user to run the Vercel deploy in the foreground": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976161
+      }
+    ],
+    "8.3 Record the deployment URL": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976200
+      }
+    ],
+    "9.1 Ask the user for approval, then push `feat/frontend`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976233
+      }
+    ],
+    "10.1 Render deal evidence as labelled exhibits": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976257
+      }
+    ],
+    "10.2 Add the verdict banner and its single motion moment": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976280
+      }
+    ],
+    "10.3 Add the hash strip with its own on-chain track": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976302
+      }
+    ],
+    "11.1 Recompute hashes in the browser and compare three sources": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976330
+      }
+    ],
+    "11.4 Confine the boldest treatment to the ruling block": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976353
+      }
+    ],
+    "11.5 Review `/deals/[dealId]` against the screen checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976380
+      }
+    ],
+    "12. Checkpoint — the verification claim end to end": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976404
+      }
+    ],
+    "13.1 Derive the display state and partition deals by state": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976430
+      }
+    ],
+    "13.3 Poll the deal list and make the docket the demo home": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976455
+      }
+    ],
+    "13.5 Review `/` against the screen checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976479
+      }
+    ],
+    "14.1 Stream MCP reputation queries as a transcript": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976504
+      }
+    ],
+    "14.3 Review `/activity` against the screen checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976528
+      }
+    ],
+    "15.1 Proxy settlement through a server-only key": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976579
+      }
+    ],
+    "15.3 Submit two preset payloads for live judging": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976604
+      }
+    ],
+    "15.7 Assert the internal key is absent from the client bundle": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976633
+      }
+    ],
+    "15.8 Review `/sandbox` against the screen checklist": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976659
+      }
+    ],
+    "16.1 Close the responsive, keyboard, and reduced-motion gaps": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976685
+      }
+    ],
+    "16.7 Audit the commit history against the repository workflow rules": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976719
+      }
+    ],
+    "17. Final checkpoint — full gate run": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981976983
+      }
+    ],
+    "18.1 Verify the release build passes every gate": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981977030
+      }
+    ],
+    "18.2 Hand control to the user to re-run the Vercel deploy in the foreground": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981977062
+      }
+    ],
+    "18.3 Update the recorded deployment URL": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981977088
+      }
+    ],
+    "19.1 Ask the user for approval, then push `feat/frontend`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981977114
+      }
+    ],
+    "19.2 Ask the user for approval, then open the pull request into `main`": [
+      {
+        "executionId": "a277abdc-c420-495e-bc39-b6f6e083ea8e",
+        "chatSessionId": "sess_5bbc7c3f-4c84-46c2-99f8-7a790a1bab6f",
+        "timestamp": 1788981977145
+      }
+    ]
+  }
+}
