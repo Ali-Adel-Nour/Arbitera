@@ -13,7 +13,7 @@
 
 Arbitera is a **trust-minimized, auditable AI escrow and arbitration protocol** for autonomous agents. Agent A queries Agent B's reputation through MCP, decides whether to hire, funds an ERC-20/USDC-compatible escrow, and gets a deterministic AI Judge verdict before the authorized oracle releases payment or refunds the buyer.
 
-> **MVP truth:** reputation currently comes from Prisma-backed persisted deal records. The response shape is Graph-ready, but this repository does **not** claim a production The Graph subgraph.
+> **MVP truth:** off-chain AI Judge reputation and audit records come from Prisma. The included subgraph indexes on-chain escrow facts for Graph-enabled deployments, but this repository does **not** claim a production subgraph deployment.
 
 ---
 
@@ -131,7 +131,7 @@ The demo seeds its explicitly marked fixture records into Prisma, queries the re
 | Oracle integration | Ethers + authorized wallet | Submits `verdictHash` through `resolveEscrow` |
 | Reputation API | Node HTTP server | Aggregates success, failure, recency, category, and history |
 | Agent interface | MCP stdio server | Gives agents structured reputation before hiring |
-| Future indexing | Graph-compatible response boundary | Contract events can later feed a production indexer |
+| Indexing | `subgraph/` event schema and mappings | Indexes escrow lifecycle facts; deployment remains operator-configured |
 
 ## 🧰 Tech Stack
 
@@ -140,7 +140,7 @@ The demo seeds its explicitly marked fixture records into Prisma, queries the re
 - **Ethers v6** for RPC, wallet, hashing, and contract settlement.
 - **Model Context Protocol** for agent-facing reputation queries.
 - **ERC-20 / USDC-compatible tokens** for escrow payments; local tests include MockUSDC and a fee-on-transfer token.
-- **The Graph-ready boundary:** events such as `EscrowCreated`, `DeliverableSubmitted`, and `EscrowResolved` are available for a future indexer, but no deployed subgraph is included today.
+- **The Graph integration:** `subgraph/` indexes `EscrowCreated`, `DeliverableSubmitted`, `EscrowResolved`, and `EscrowRefunded`; no deployed production endpoint is included.
 
 ## 📡 Backend API
 
@@ -161,6 +161,8 @@ The demo seeds its explicitly marked fixture records into Prisma, queries the re
 
 `GET /api/judgments/:dealId` returns the stored canonical evaluation record and a consistency check for its `verdictHash`. This proves that the stored record matches the recorded hash; it does not prove model execution or exactly what the model saw. The MCP tool `verify_deal_verdict` forwards the independent backend verification.
 
+The MCP server also exposes `get_indexed_deal`. With `GRAPH_ENDPOINT` configured, `get_agent_reputation` and indexed deal lookups prefer The Graph for on-chain lifecycle evidence and return `source: "graph"`. If Graph is unavailable, not configured, empty, or malformed, those queries use the backend/Prisma endpoint and return `source: "backend"`. The Graph response never replaces the off-chain AI Judge audit: prompt, rubric, raw response, reasoning, and `verdictHash` remain backend data.
+
 `POST /api/judge-and-settle` runs the same verdict flow and submits the deterministic `verdictHash` to `resolveEscrow`. It requires the `X-Arbitra-Internal-Key` header, configured RPC/escrow/oracle variables, and a bytes32 hex `dealId` for actual on-chain settlement. The legacy `/judge` and `/judge-and-settle` routes remain available for compatibility.
 
 ## 🚀 Local Development
@@ -179,7 +181,7 @@ npm.cmd run dev:backend
 npm.cmd run dev:mcp
 ```
 
-Copy [`backend/.env.example`](backend/.env.example) to your local environment and configure the LLM and escrow variables. Never commit API keys or private keys.
+Copy [`backend/.env.example`](backend/.env.example) to your local environment and configure the LLM and escrow variables. For MCP, copy [`mcp-server/.env.example`](mcp-server/.env.example); set `GRAPH_ENDPOINT` only when a compatible subgraph is deployed. Never commit API keys or private keys.
 
 ## ✅ Verification
 
@@ -191,7 +193,7 @@ npm.cmd run compile:contracts
 git diff --check
 ```
 
-The backend tests cover PASS/FAIL verdicts, malformed and expired input, deterministic hash stability and changes, reputation responses, and settlement CORS headers. The MCP test covers structured reputation and a hiring decision threshold.
+The backend tests cover PASS/FAIL verdicts, structured-output requests, fenced/malformed/schema-invalid responses, deterministic hash stability, persisted audit verification, and the judge-and-settle path. The MCP tests cover backend compatibility, Graph mapping, source labels, and fallback on an empty Graph result.
 
 On some Windows/Node 24 environments, Hardhat can fail before compilation with `uv_os_get_passwd returned ENOMEM`; that is an environment/libuv failure rather than a Solidity diagnostic.
 

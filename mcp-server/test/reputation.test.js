@@ -86,4 +86,70 @@ describe("reputation MCP tool", function () {
     assert.equal(result.structuredContent.verdict, "PASS");
     assert.equal(result.structuredContent.modelVersion, "test-version");
   });
+
+  it("prefers Graph indexed escrow facts and labels the source", async function () {
+    const graph = createServer(async (request, response) => {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      assert.match(body, /Escrows/);
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ data: { escrows: [{
+        id: "0xdeal", dealId: "0xdeal", buyer: "0xbuyer", seller: "0xseller", token: "0xtoken",
+        amount: "100", criteriaHash: "criteria", deadline: "200", state: "ResolvedSuccess",
+        approved: true, createdTransactionHash: "0xcreate", createdBlockNumber: "10",
+        submittedTransactionHash: "0xsubmit", submittedBlockNumber: "11",
+        resolvedTransactionHash: "0xresolve", resolvedBlockNumber: "12",
+      }] } }));
+    });
+    graph.listen(0);
+    await once(graph, "listening");
+    const graphAddress = graph.address();
+    assert.ok(graphAddress && typeof graphAddress !== "string");
+
+    const child = spawn(process.execPath, ["dist/index.js"], {
+      env: { ...process.env, GRAPH_ENDPOINT: `http://127.0.0.1:${graphAddress.port}` },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const output = [];
+    child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    child.stdin.end(JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_agent_reputation", arguments: { agent: "0xseller" } } }) + "\n");
+    await once(child, "close");
+    await new Promise((resolve) => graph.close(resolve));
+
+    const result = JSON.parse(output.join("")).result.structuredContent;
+    assert.equal(result.source, "graph");
+    assert.equal(result.successRate, 1);
+    assert.equal(result.history[0].resolvedTransactionHash, "0xresolve");
+  });
+
+  it("falls back to the backend when Graph is empty or malformed", async function () {
+    const graph = createServer((request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ data: { escrows: [] } }));
+    });
+    const backend = createServer((request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ agent: "agent-b", totalJudged: 1, successes: 1, failures: 0, successRate: 1, failureRate: 0 }));
+    });
+    graph.listen(0); backend.listen(0);
+    await Promise.all([once(graph, "listening"), once(backend, "listening")]);
+    const graphAddress = graph.address(); const backendAddress = backend.address();
+    assert.ok(graphAddress && typeof graphAddress !== "string");
+    assert.ok(backendAddress && typeof backendAddress !== "string");
+
+    const child = spawn(process.execPath, ["dist/index.js"], {
+      env: { ...process.env, GRAPH_ENDPOINT: `http://127.0.0.1:${graphAddress.port}`, ARBITRA_BACKEND_URL: `http://127.0.0.1:${backendAddress.port}` },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const output = [];
+    child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    child.stdin.end(JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "get_agent_reputation", arguments: { agent: "agent-b" } } }) + "\n");
+    await once(child, "close");
+    await new Promise((resolve) => graph.close(resolve));
+    await new Promise((resolve) => backend.close(resolve));
+
+    const result = JSON.parse(output.join("")).result.structuredContent;
+    assert.equal(result.source, "backend");
+    assert.equal(result.totalJudged, 1);
+  });
 });

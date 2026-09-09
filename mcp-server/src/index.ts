@@ -1,6 +1,8 @@
 import { createInterface } from "node:readline";
+import { ArbiteraDataService } from "./data-service.js";
 
 const backendUrl = process.env.ARBITRA_BACKEND_URL ?? "http://localhost:3000";
+const service = new ArbiteraDataService(backendUrl);
 
 function reply(id: unknown, result: unknown): void {
   process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`);
@@ -36,6 +38,14 @@ async function handle(message: { id?: unknown; method?: string; params?: any }):
           properties: { dealId: { type: "string", description: "Deal identifier" } },
           required: ["dealId"],
         },
+      }, {
+        name: "get_indexed_deal",
+        description: "Query an escrow lifecycle record from The Graph, with explicit backend audit fallback.",
+        inputSchema: {
+          type: "object",
+          properties: { dealId: { type: "string", description: "Deal identifier" } },
+          required: ["dealId"],
+        },
       }],
     });
     return;
@@ -47,27 +57,21 @@ async function handle(message: { id?: unknown; method?: string; params?: any }):
       reply(message.id, { isError: true, content: [{ type: "text", text: "dealId is required" }] });
       return;
     }
-    const response = await fetch(`${backendUrl}/api/judgments/${encodeURIComponent(dealId)}`);
-    const data = await response.json() as {
+    const data = await service.getDeal(dealId) as {
       verified?: boolean;
       verdictHash?: string;
       verdict?: string;
       score?: number;
       modelId?: string;
       modelVersion?: string;
+      source?: string;
       [key: string]: unknown;
     };
-    const result = response.ok
-      ? {
-          verified: data.verified,
-          verdictHash: data.verdictHash,
-          verdict: data.verdict,
-          score: data.score,
-          modelId: data.modelId,
-          modelVersion: data.modelVersion,
-        }
-      : data;
-    reply(message.id, { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result, isError: !response.ok });
+    const result = "verified" in data || "verdictHash" in data ? {
+      verified: data.verified, verdictHash: data.verdictHash, verdict: data.verdict,
+      score: data.score, modelId: data.modelId, modelVersion: data.modelVersion, source: data.source,
+    } : data;
+    reply(message.id, { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result });
     return;
   }
 
@@ -77,9 +81,19 @@ async function handle(message: { id?: unknown; method?: string; params?: any }):
       reply(message.id, { isError: true, content: [{ type: "text", text: "agent is required" }] });
       return;
     }
-    const response = await fetch(`${backendUrl}/api/reputation/${encodeURIComponent(agent)}`);
-    const data = await response.json();
-    reply(message.id, { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data, isError: !response.ok });
+    const data = await service.getReputation(agent);
+    reply(message.id, { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data });
+    return;
+  }
+
+  if (message.method === "tools/call" && message.params?.name === "get_indexed_deal") {
+    const dealId = message.params.arguments?.dealId;
+    if (typeof dealId !== "string" || !dealId.trim()) {
+      reply(message.id, { isError: true, content: [{ type: "text", text: "dealId is required" }] });
+      return;
+    }
+    const data = await service.getDeal(dealId);
+    reply(message.id, { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data });
     return;
   }
 

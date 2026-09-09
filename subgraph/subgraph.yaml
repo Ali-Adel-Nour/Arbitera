@@ -1,0 +1,31 @@
+specVersion: 1.3.0
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: ArbiterEscrow
+    network: localhost
+    source:
+      address: "{{ARBITER_ESCROW_ADDRESS}}"
+      abi: ArbiterEscrow
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Escrow
+        - EscrowEvent
+      abis:
+        - name: ArbiterEscrow
+          file: ./abis/ArbiterEscrow.json
+      eventHandlers:
+        - event: EscrowCreated(indexed bytes32,indexed address,indexed address,address,uint256,string,uint256)
+          handler: handleEscrowCreated
+        - event: DeliverableSubmitted(indexed bytes32,string)
+          handler: handleDeliverableSubmitted
+        - event: EscrowResolved(indexed bytes32,indexed address,indexed address,bool,uint256,string)
+          handler: handleEscrowResolved
+        - event: EscrowRefunded(indexed bytes32,indexed address,uint256,string)
+          handler: handleEscrowRefunded
+      file: ./src/mapping.ts
