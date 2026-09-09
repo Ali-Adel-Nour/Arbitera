@@ -82,6 +82,7 @@ async function main(): Promise<void> {
     ...process.env,
     PORT: String(backendPort),
     VERDICT_STORE_PATH: verdictStorePath,
+    ARBITRA_PERSISTENCE: "jsonl",
     ARBITRA_NO_LISTEN: "false",
   });
 
