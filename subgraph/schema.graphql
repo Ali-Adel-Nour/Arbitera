@@ -1,0 +1,33 @@
+type Escrow @entity {
+  id: ID!
+  dealId: Bytes!
+  buyer: Bytes!
+  seller: Bytes!
+  token: Bytes!
+  amount: BigInt!
+  criteriaHash: String!
+  deadline: BigInt!
+  state: String!
+  deliverableHash: String
+  approved: Boolean
+  verdictReasoningHash: String
+  createdTransactionHash: Bytes!
+  createdBlockNumber: BigInt!
+  submittedTransactionHash: Bytes
+  submittedBlockNumber: BigInt
+  resolvedTransactionHash: Bytes
+  resolvedBlockNumber: BigInt
+  createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+type EscrowEvent @entity(immutable: true) {
+  id: ID!
+  deal: Escrow!
+  kind: String!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  approved: Boolean
+  hash: String
+}

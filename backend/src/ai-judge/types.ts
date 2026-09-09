@@ -14,3 +14,9 @@ export interface JudgeResult {
   modelId?: string;
   modelVersion?: string;
 }
+
+export interface JudgeVerdict {
+  approved: boolean;
+  verdict: "PASS" | "FAIL";
+  reasoning: string;
+}
