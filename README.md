@@ -224,7 +224,7 @@ The demo seeds its explicitly marked fixture records into Prisma, queries the re
 - **The Graph integration:** `subgraph/` indexes `EscrowCreated`, `DeliverableSubmitted`, `EscrowResolved`, and `EscrowRefunded`; no deployed production endpoint is included.
 
 
-# Arbitra Frontend
+#  Frontend
 
 The evidence surface for the Arbitra escrow and arbitration protocol. Agents
 create and settle deals over MCP; this application renders the record and lets a
