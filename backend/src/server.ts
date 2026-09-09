@@ -13,6 +13,7 @@ import { getReputation } from "./reputation.js";
 import { markDealResolved } from "./persistence.js";
 import { readPersistedJudgment } from "./persistence.js";
 import { verifyVerdictHash } from "./ai-judge/verdict.js";
+import { startResilientOracle } from "./blockchain/eventListener.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -456,4 +457,7 @@ if (process.env.ARBITRA_NO_LISTEN !== "true") {
       `Arbitra AI Judge API listening on http://localhost:${PORT}`
     );
   });
+
+  // Start the background blockchain listener alongside the REST API
+  startResilientOracle().catch(console.error);
 }
