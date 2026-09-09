@@ -6,6 +6,8 @@
 /backend/dist
 /mcp-server/dist
 /backend/data
+/backend/prisma/dev.db
+/backend/prisma/dev.db-journal
 
 # pnpm deploy output
 /bundle

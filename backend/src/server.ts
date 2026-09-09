@@ -10,6 +10,7 @@ import {
 } from "./ai-judge/index.js";
 import { settleEscrow } from "./oracle.js";
 import { getReputation } from "./reputation.js";
+import { markDealResolved } from "./persistence.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -292,6 +293,7 @@ export const server = createServer(
           verdict.reasoning,
           verdict.verdictHash
         );
+        await markDealResolved(body.dealId, settlement.transactionHash);
 
         sendJson(response, 200, { verdict, settlement });
       } catch (error) {

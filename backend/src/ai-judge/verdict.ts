@@ -4,6 +4,7 @@ import { keccak256, toUtf8Bytes } from "ethers";
 
 import { judgeDeliverable } from "./judge.js";
 import type { JudgeResult } from "./types.js";
+import { persistVerdict as persistEscrowVerdict } from "../persistence.js";
 
 export interface DealJudgeInput {
   dealId: string;
@@ -137,6 +138,7 @@ export async function evaluateDeal(
 
   const verdict = buildVerdict(input, result);
   await persistVerdict(verdict);
+  await persistEscrowVerdict(verdict);
   return verdict;
 }
 

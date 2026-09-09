@@ -14,6 +14,7 @@ process.env.VERDICT_STORE_PATH = join(tmpdir(), "arbitra-verdicts-test.jsonl");
 
 const { server } = await import("../dist/server.js");
 const { buildVerdict } = await import("../dist/ai-judge/verdict.js");
+const { prisma } = await import("../dist/lib/prisma.js");
 const realFetch = globalThis.fetch;
 let judgeResponse = {
   approved: true,
@@ -43,6 +44,7 @@ describe("POST /api/judge", function () {
 
   after(async function () {
     await new Promise((resolve) => server.close(resolve));
+    await prisma.$disconnect();
   });
 
   it("returns the normalized structured verdict", async function () {
@@ -73,6 +75,16 @@ describe("POST /api/judge", function () {
     assert.match(verdict.verdictHash, /^0x[0-9a-f]{64}$/);
     assert.equal(verdict.deadline, "2099-01-01T00:00:00.000Z");
 
+    const persisted = await prisma.escrowDeal.findUnique({
+      where: { dealId: "deal-123" },
+    });
+    assert.ok(persisted);
+    assert.equal(persisted.sellerAddress, "agent-b");
+    assert.equal(persisted.aiVerdict, true);
+    assert.equal(persisted.aiScore, 100);
+    assert.equal(persisted.verdictHash, verdict.verdictHash);
+    assert.equal(persisted.state, "JUDGED");
+
     const repeatResponse = await fetch(`http://127.0.0.1:${address.port}/api/judge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,6 +97,10 @@ describe("POST /api/judge", function () {
       }),
     });
     assert.equal((await repeatResponse.json()).verdictHash, verdict.verdictHash);
+    assert.equal(
+      await prisma.escrowDeal.count({ where: { dealId: "deal-123" } }),
+      1
+    );
   });
 
   it("returns a bounded FAIL verdict", async function () {
@@ -112,6 +128,14 @@ describe("POST /api/judge", function () {
     assert.equal(response.status, 200);
     assert.equal(verdict.approved, false);
     assert.equal(verdict.score, 0);
+
+    const persisted = await prisma.escrowDeal.findUnique({
+      where: { dealId: "deal-fail" },
+    });
+    assert.ok(persisted);
+    assert.equal(persisted.aiVerdict, false);
+    assert.equal(persisted.aiScore, 0);
+    assert.equal(persisted.verdictHash, verdict.verdictHash);
   });
 
   it("rejects malformed input before calling the judge", async function () {

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { AuditableVerdict } from "./ai-judge/verdict.js";
+import { readPersistedDeals } from "./persistence.js";
 
 export interface ReputationSummary {
   agent: string;
@@ -30,7 +31,41 @@ async function readVerdicts(): Promise<AuditableVerdict[]> {
 }
 
 export async function getReputation(agent: string): Promise<ReputationSummary> {
-  const records = (await readVerdicts()).filter((record) => record.seller === agent);
+  let records: Array<Pick<AuditableVerdict, "dealId" | "approved" | "score" | "verdictHash" | "timestamp" | "taskCategory"> & { seller?: string }>;
+  try {
+    if (process.env.ARBITRA_PERSISTENCE === "jsonl") {
+      throw new Error("JSONL persistence selected");
+    }
+
+    const deals = await readPersistedDeals(agent);
+    records = deals.map((deal) => ({
+      dealId: deal.dealId,
+      approved: deal.aiVerdict ?? false,
+      score: deal.aiScore ?? 0,
+      verdictHash: deal.verdictHash ?? "",
+      timestamp: deal.updatedAt.toISOString(),
+      taskCategory: deal.taskCategory ?? undefined,
+      seller: deal.sellerAddress ?? undefined,
+    }));
+    const auditRecords = (await readVerdicts()).filter((record) => record.seller === agent);
+    if (records.length) {
+      // Prisma represents the current state of each deal. Keep any additional
+      // canonical JSONL entries as historical judgment events so repeated
+      // evaluations remain visible without creating duplicate deal rows.
+      const seen = new Set<string>();
+      for (const record of auditRecords) {
+        if (!seen.has(record.dealId)) {
+          seen.add(record.dealId);
+          continue;
+        }
+        records.push(record);
+      }
+    } else {
+      records = auditRecords;
+    }
+  } catch {
+    records = (await readVerdicts()).filter((record) => record.seller === agent);
+  }
   const now = Date.now();
   const weighted = records.reduce((sum, record) => {
     const ageDays = Math.max(0, (now - Date.parse(record.timestamp)) / 86_400_000);

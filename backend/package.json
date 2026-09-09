@@ -7,9 +7,15 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "npm run build && mocha"
+    "test": "npm run build && mocha",
+    "prisma:generate": "node ../node_modules/prisma/build/index.js generate",
+    "prisma:migrate": "node ../node_modules/prisma/build/index.js migrate dev --name init"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.2",
     "ethers": "^6.17.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.16.2"
   }
 }
