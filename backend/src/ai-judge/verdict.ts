@@ -37,7 +37,7 @@ export interface AuditableVerdict {
   timestamp: string;
 }
 
-function canonicalize(value: unknown): string {
+export function canonicalize(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalize).join(",")}]`;
   }
@@ -54,8 +54,56 @@ function canonicalize(value: unknown): string {
   return value === undefined ? "null" : JSON.stringify(value);
 }
 
-function hash(value: unknown): string {
+export function hashCanonicalValue(value: unknown): string {
   return keccak256(toUtf8Bytes(canonicalize(value)));
+}
+
+export interface VerifiableVerdictRecord {
+  dealId: string;
+  buyer?: string;
+  seller?: string;
+  taskCategory?: string;
+  deadline: string;
+  acceptanceCriteria: string[];
+  deliverable: string;
+  approved: boolean;
+  score: number;
+  reasoning: string;
+  verdict: "PASS" | "FAIL";
+  modelId: string;
+  modelVersion: string;
+  evaluationPrompt: string;
+  rawResponse: string;
+  verdictHash: string;
+}
+
+export function calculateVerdictHash(record: VerifiableVerdictRecord): string {
+  const deliverableHash = hashCanonicalValue(record.deliverable);
+  const rubricHash = hashCanonicalValue(record.acceptanceCriteria);
+
+  return hashCanonicalValue({
+    acceptanceCriteria: record.acceptanceCriteria,
+    approved: record.approved,
+    buyer: record.buyer,
+    dealId: record.dealId,
+    deliverable: record.deliverable,
+    deliverableHash,
+    deadline: normalizeDeadline(record.deadline),
+    evaluationPrompt: record.evaluationPrompt,
+    modelId: record.modelId,
+    modelVersion: record.modelVersion,
+    rawResponse: record.rawResponse,
+    reasoning: record.reasoning,
+    rubricHash,
+    score: record.score,
+    seller: record.seller,
+    taskCategory: record.taskCategory,
+    verdict: record.verdict,
+  });
+}
+
+export function verifyVerdictHash(record: VerifiableVerdictRecord): boolean {
+  return calculateVerdictHash(record) === record.verdictHash;
 }
 
 export function normalizeDeadline(deadline: string | number): string {
@@ -87,8 +135,8 @@ export function buildVerdict(
     modelVersion: result.modelVersion ?? configuredModel.modelVersion,
   };
   const normalizedDeadline = normalizeDeadline(input.deadline);
-  const rubricHash = hash(input.acceptanceCriteria);
-  const deliverableHash = hash(input.deliverable);
+  const rubricHash = hashCanonicalValue(input.acceptanceCriteria);
+  const deliverableHash = hashCanonicalValue(input.deliverable);
   const score = result.approved ? 100 : 0;
   const evaluationPrompt = result.evaluationPrompt ?? "";
   const rawResponse = result.rawResponse ?? "";
@@ -118,7 +166,7 @@ export function buildVerdict(
   return {
     ...verdictPayload,
     deadline: normalizedDeadline,
-    verdictHash: hash(verdictPayload),
+    verdictHash: hashCanonicalValue(verdictPayload),
     timestamp: new Date().toISOString(),
   };
 }
@@ -143,6 +191,9 @@ export async function evaluateDeal(
 }
 
 async function persistVerdict(verdict: AuditableVerdict): Promise<void> {
+  // JSONL is retained only as an explicit legacy/demo fixture mode. Prisma is
+  // the application persistence path by default.
+  if (process.env.ARBITRA_PERSISTENCE !== "jsonl") return;
   const filePath =
     process.env.VERDICT_STORE_PATH ?? "backend/data/verdicts.jsonl";
 

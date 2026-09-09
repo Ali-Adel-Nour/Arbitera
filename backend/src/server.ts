@@ -11,6 +11,8 @@ import {
 import { settleEscrow } from "./oracle.js";
 import { getReputation } from "./reputation.js";
 import { markDealResolved } from "./persistence.js";
+import { readPersistedJudgment } from "./persistence.js";
+import { verifyVerdictHash } from "./ai-judge/verdict.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -250,6 +252,36 @@ export const server = createServer(
         sendJson(response, 200, await getReputation(agent));
       } catch (error) {
         sendJson(response, 500, { error: error instanceof Error ? error.message : "Unable to read reputation" });
+      }
+      return;
+    }
+
+    if (request.method === "GET" && request.url?.startsWith("/api/judgments/")) {
+      let dealId: string;
+      try {
+        const path = new URL(request.url, "http://localhost").pathname;
+        dealId = decodeURIComponent(path.slice("/api/judgments/".length));
+      } catch {
+        sendJson(response, 400, { error: "Deal ID must be URL encoded" });
+        return;
+      }
+
+      if (!dealId.trim()) {
+        sendJson(response, 400, { error: "Deal ID is required" });
+        return;
+      }
+
+      try {
+        const record = await readPersistedJudgment(dealId);
+        if (!record) {
+          sendJson(response, 404, { error: "Judgment not found" });
+          return;
+        }
+        sendJson(response, 200, { ...record, verified: verifyVerdictHash(record) });
+      } catch (error) {
+        sendJson(response, 500, {
+          error: error instanceof Error ? error.message : "Unable to read judgment",
+        });
       }
       return;
     }

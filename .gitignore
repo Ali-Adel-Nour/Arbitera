@@ -8,6 +8,8 @@
 /backend/data
 /backend/prisma/dev.db
 /backend/prisma/dev.db-journal
+/backend/prisma/demo.db
+/backend/prisma/demo.db-journal
 
 # pnpm deploy output
 /bundle
