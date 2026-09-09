@@ -51,3 +51,7 @@ node_modules/
 
 # Next.js build output
 .next/
+
+# Kiro task-state metadata: rewritten on every task transition, so it churns
+# in unrelated diffs. The spec markdown stays tracked.
+.kiro/specs/*/tasks.meta.json
