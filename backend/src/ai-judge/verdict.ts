@@ -187,6 +187,10 @@ export async function evaluateDeal(
   const verdict = buildVerdict(input, result);
   await persistVerdict(verdict);
   await persistEscrowVerdict(verdict);
+  
+  // Asynchronously pin to IPFS (doesn't block the API return)
+  import("../ipfs.js").then((ipfs) => ipfs.uploadToIPFS(verdict));
+  
   return verdict;
 }
 

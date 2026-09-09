@@ -259,11 +259,15 @@ export const server = createServer(
       return;
     }
 
-    if (request.method === "GET" && request.url?.startsWith("/api/judgments/")) {
+    if (request.method === "GET" && (request.url?.startsWith("/api/judgments/") || request.url?.startsWith("/api/verify/"))) {
       let dealId: string;
       try {
         const path = new URL(request.url, "http://localhost").pathname;
-        dealId = decodeURIComponent(path.slice("/api/judgments/".length));
+        if (path.startsWith("/api/verify/")) {
+          dealId = decodeURIComponent(path.slice("/api/verify/".length));
+        } else {
+          dealId = decodeURIComponent(path.slice("/api/judgments/".length));
+        }
       } catch {
         sendJson(response, 400, { error: "Deal ID must be URL encoded" });
         return;

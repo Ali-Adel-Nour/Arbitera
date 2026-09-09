@@ -1,4 +1,4 @@
-# ⚖️ Arbitera: The AI-Operated Escrow Court
+# ⚖️ Arbitra: The AI-Operated Escrow Court
 
 > **Agents hire agents with reputation first, escrow second, and an auditable AI court at the finish line.**
 
@@ -11,7 +11,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Hardhat](https://img.shields.io/badge/Hardhat-3-FFF100?logo=hardhat&logoColor=111111)](https://hardhat.org/)
 
-Arbitera is a **trust-minimized, auditable AI escrow and arbitration protocol** for autonomous agents. Agent A queries Agent B's reputation through MCP, decides whether to hire, funds an ERC-20/USDC-compatible escrow, and gets a deterministic AI Judge verdict before the authorized oracle releases payment or refunds the buyer.
+Arbitra is a **trust-minimized, auditable AI escrow and arbitration protocol** for autonomous agents. Agent A queries Agent B's reputation through MCP, decides whether to hire, funds an ERC-20/USDC-compatible escrow, and gets a deterministic AI Judge verdict before the authorized oracle releases payment or refunds the buyer.
 
 > **MVP truth:** off-chain AI Judge reputation and audit records come from Prisma. The included subgraph indexes on-chain escrow facts for Graph-enabled deployments, but this repository does **not** claim a production subgraph deployment.
 
@@ -39,7 +39,7 @@ flowchart LR
 
 ### The agent-to-agent decision comes first
 
-Arbitera is not just a dashboard where a human looks up a score. The intended loop is:
+Arbitra is not just a dashboard where a human looks up a score. The intended loop is:
 
 ```text
 Agent A → MCP → reputation for Agent B → hiring decision → escrow only if worth it
@@ -54,11 +54,11 @@ These are the actual values produced by the local demo, not hardcoded UI claims.
 
 ---
 
-## 🎯 Why Arbitera
+## 🎯 Why Arbitra
 
 Autonomous agents need both sides of a marketplace transaction to be safe:
 
-| Without Arbitera | With Arbitera |
+| Without Arbitra | With Arbitra |
 |---|---|
 | Pay before delivery and risk poor work | Query reputation before hiring |
 | Deliver first and risk non-payment | Lock funds in escrow |
@@ -89,6 +89,87 @@ Score + reasoning ─┘                    on-chain oracle reference
 ```
 
 The hash commits to the canonical record, including the prompt, rubric, deliverable, model metadata, raw response, verdict, score, and reasoning. The timestamp is stored for auditability but excluded from the deterministic payload, so identical inputs produce identical hashes. This proves that a persisted record matches its hash; it does not independently prove what an LLM actually saw or that the model was honest.
+
+### 🔒 Transparency & Auditability (Tamper-Evidence)
+
+Arbitra is built to be a trust-minimized protocol. We do not ask users to blindly trust our AI Oracle. Instead, we use deterministic hashing to prove cryptographic chain-of-custody.
+
+Because the `ArbiterEscrow.sol` smart contract emits the `verdictHash` in its `EscrowResolved` event, this architecture ensures the off-chain evidence perfectly mathematically aligns with the on-chain settlement record.
+
+#### 1. The Canonicalization Algorithm
+Arbitra uses a strict canonicalization algorithm before hashing to prevent JSON serialization quirks (like cross-language whitespace or key ordering differences) from causing hash mismatches. 
+
+To independently verify a `verdictHash`, the JSON payload is formatted according to these rules:
+1. All object keys must be sorted alphabetically.
+2. All whitespace between keys and values must be removed.
+3. Undefined values must be entirely omitted.
+
+*(See `backend/src/ai-judge/verdict.ts` for the exact implementation).*
+
+#### 2. Third-Party Audit Script 
+If you are an auditor, you can instantly verify any deal by calling `GET /api/verify/:dealId` or pulling the record from IPFS. You can use the following TypeScript script to mathematically prove that the backend did not tamper with the data:
+
+```typescript
+import { ethers } from "ethers";
+
+// 1. The Canonicalization Algorithm
+export function canonicalize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalize).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return value === undefined ? "null" : JSON.stringify(value);
+}
+
+export function hashCanonicalValue(value: unknown): string {
+  return ethers.keccak256(ethers.toUtf8Bytes(canonicalize(value)));
+}
+
+// 2. Load the payload from IPFS or the /verify endpoint
+const record = { /* Paste the downloaded JSON payload here */ } as any;
+
+// 3. Reconstruct the exact payload
+const deliverableHash = hashCanonicalValue(record.deliverable);
+const rubricHash = hashCanonicalValue(record.acceptanceCriteria);
+
+const payloadToHash = {
+    acceptanceCriteria: record.acceptanceCriteria,
+    approved: record.approved,
+    buyer: record.buyer,
+    deadline: record.deadline, // Must match the exact string from IPFS
+    dealId: record.dealId,
+    deliverable: record.deliverable,
+    deliverableHash,
+    evaluationPrompt: record.evaluationPrompt,
+    modelId: record.modelId,
+    modelVersion: record.modelVersion,
+    rawResponse: record.rawResponse,
+    reasoning: record.reasoning,
+    rubricHash,
+    score: record.score,
+    seller: record.seller,
+    taskCategory: record.taskCategory,
+    verdict: record.verdict,
+};
+
+// 4. Verify the integrity of the Oracle's decision
+const computedHash = hashCanonicalValue(payloadToHash);
+
+console.log(`Blockchain Hash:     ${record.verdictHash}`);
+console.log(`Auditor Hash:        ${computedHash}\n`);
+
+if (computedHash === record.verdictHash) {
+    console.log("✅ AUDIT PASSED: The protocol evaluated the correct, untampered data.");
+} else {
+    console.log("❌ AUDIT FAILED: The backend lied about the inputs or formatting.");
+}
+```
 
 ## 🔐 End-to-End Escrow Flow
 
@@ -199,7 +280,7 @@ On some Windows/Node 24 environments, Hardhat can fail before compilation with `
 
 ## 🛡️ Security / Trust Model
 
-Arbitera does not claim fully trustless AI arbitration. The contract is the trustless custody and settlement boundary. The LLM, backend persistence, and oracle key are trusted infrastructure for this MVP. The audit record, canonical serialization, hashes, stored raw response, and on-chain reference make that trust boundary inspectable and tamper-evident.
+Arbitra does not claim fully trustless AI arbitration. The contract is the trustless custody and settlement boundary. The LLM, backend persistence, and oracle key are trusted infrastructure for this MVP. The audit record, canonical serialization, hashes, stored raw response, and on-chain reference make that trust boundary inspectable and tamper-evident.
 
 ## License
 
