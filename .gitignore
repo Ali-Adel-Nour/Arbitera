@@ -41,3 +41,6 @@ types
 
 # Snapshot cheatcodes output
 /snapshots
+
+
+blockchain/remappings.txt
