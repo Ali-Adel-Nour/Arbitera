@@ -55,7 +55,7 @@ contract EscrowHandler is Test {
         bytes32 dealId = _getRandomDealId(seedIndex);
         if (dealId == bytes32(0)) return;
         
-        (,,, address dealToken, uint256 amount,,, IArbiterEscrow.EscrowState state,,) = escrow.escrows(dealId);
+        (,,,,,,, IArbiterEscrow.EscrowState state,,) = escrow.escrows(dealId);
         if (state != IArbiterEscrow.EscrowState.Funded) return;
         
         (, , address seller, , , , uint256 deadline, , , ) = escrow.escrows(dealId);
@@ -69,7 +69,7 @@ contract EscrowHandler is Test {
         bytes32 dealId = _getRandomDealId(seedIndex);
         if (dealId == bytes32(0)) return;
 
-        (,,, address dealToken, uint256 amount,,, IArbiterEscrow.EscrowState state,,) = escrow.escrows(dealId);
+        (,,,, uint256 amount,,, IArbiterEscrow.EscrowState state,,) = escrow.escrows(dealId);
         if (state != IArbiterEscrow.EscrowState.Submitted) return;
 
         vm.prank(oracle);
@@ -82,7 +82,7 @@ contract EscrowHandler is Test {
         bytes32 dealId = _getRandomDealId(seedIndex);
         if (dealId == bytes32(0)) return;
 
-        (, address buyer, , address dealToken, uint256 amount, , uint256 deadline, IArbiterEscrow.EscrowState state, , ) = escrow.escrows(dealId);
+        (, address buyer, ,, uint256 amount, , uint256 deadline, IArbiterEscrow.EscrowState state, , ) = escrow.escrows(dealId);
         
         if (state == IArbiterEscrow.EscrowState.Funded) {
             if (block.timestamp <= deadline) return;
@@ -121,7 +121,7 @@ contract ArbiterEscrowInvariantTest is StdInvariant, Test {
     }
 
     /// @dev Core Invariant 1: The smart contract must always hold EXACTLY the sum of all active deals.
-    function invariant_ContractBalanceMustMatchActiveDeals() public {
+    function invariant_ContractBalanceMustMatchActiveDeals() public view {
         uint256 actualBalance = usdc.balanceOf(address(escrow));
         assertEq(actualBalance, handler.expectedEscrowBalance());
     }
