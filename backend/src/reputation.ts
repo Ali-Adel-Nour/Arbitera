@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-
 import type { AuditableVerdict } from "./ai-judge/verdict.js";
 import { readPersistedDeals } from "./persistence.js";
 
@@ -15,66 +13,26 @@ export interface ReputationSummary {
   history: Array<Pick<AuditableVerdict, "dealId" | "approved" | "score" | "verdictHash" | "timestamp" | "taskCategory">>;
 }
 
-async function readVerdicts(): Promise<AuditableVerdict[]> {
-  const filePath = process.env.VERDICT_STORE_PATH ?? "backend/data/verdicts.jsonl";
-
-  try {
-    const contents = await readFile(filePath, "utf8");
-    return contents
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as AuditableVerdict);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-}
-
 export async function getReputation(agent: string): Promise<ReputationSummary> {
-  let records: Array<Pick<AuditableVerdict, "dealId" | "approved" | "score" | "verdictHash" | "timestamp" | "taskCategory"> & { seller?: string }>;
-  try {
-    if (process.env.ARBITRA_PERSISTENCE === "jsonl") {
-      throw new Error("JSONL persistence selected");
-    }
-
-    const deals = await readPersistedDeals(agent);
-    records = deals.map((deal) => ({
-      dealId: deal.dealId,
-      approved: deal.aiVerdict ?? false,
-      score: deal.aiScore ?? 0,
-      verdictHash: deal.verdictHash ?? "",
-      timestamp: deal.updatedAt.toISOString(),
-      taskCategory: deal.taskCategory ?? undefined,
-      seller: deal.sellerAddress ?? undefined,
-    }));
-    const auditRecords = (await readVerdicts()).filter((record) => record.seller === agent);
-    if (records.length) {
-      // Prisma represents the current state of each deal. Keep any additional
-      // canonical JSONL entries as historical judgment events so repeated
-      // evaluations remain visible without creating duplicate deal rows.
-      const seen = new Set<string>();
-      for (const record of auditRecords) {
-        if (!seen.has(record.dealId)) {
-          seen.add(record.dealId);
-          continue;
-        }
-        records.push(record);
-      }
-    } else {
-      records = auditRecords;
-    }
-  } catch {
-    records = (await readVerdicts()).filter((record) => record.seller === agent);
-  }
+  const deals = await readPersistedDeals(agent);
+  const records = deals.map((deal) => ({
+    dealId: deal.dealId,
+    approved: deal.aiVerdict ?? false,
+    score: deal.aiScore ?? 0,
+    verdictHash: deal.verdictHash ?? "",
+    timestamp: deal.updatedAt.toISOString(),
+    taskCategory: deal.taskCategory ?? undefined,
+  }));
   const now = Date.now();
-  const weighted = records.reduce((sum, record) => {
-    const ageDays = Math.max(0, (now - Date.parse(record.timestamp)) / 86_400_000);
-    return sum + (record.approved ? 1 : 0) * Math.exp(-ageDays / 30);
-  }, 0);
-  const weightTotal = records.reduce((sum, record) => {
-    const ageDays = Math.max(0, (now - Date.parse(record.timestamp)) / 86_400_000);
-    return sum + Math.exp(-ageDays / 30);
-  }, 0);
+  const weightFor = (timestamp: string): number => {
+    const ageDays = Math.max(0, (now - Date.parse(timestamp)) / 86_400_000);
+    return Math.exp(-ageDays / 30);
+  };
+  const weighted = records.reduce(
+    (sum, record) => sum + (record.approved ? 1 : 0) * weightFor(record.timestamp),
+    0
+  );
+  const weightTotal = records.reduce((sum, record) => sum + weightFor(record.timestamp), 0);
   const categories: ReputationSummary["byTaskCategory"] = {};
 
   for (const record of records) {
@@ -97,7 +55,6 @@ export async function getReputation(agent: string): Promise<ReputationSummary> {
     failureRate: total ? (total - successes) / total : 0,
     recencyWeightedReliability: weightTotal ? weighted / weightTotal : 0,
     byTaskCategory: categories,
-    history: records.map(({ dealId, approved, score, verdictHash, timestamp, taskCategory }) =>
-      ({ dealId, approved, score, verdictHash, timestamp, taskCategory }))
+    history: records,
   };
 }

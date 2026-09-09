@@ -28,8 +28,46 @@ async function handle(message: { id?: unknown; method?: string; params?: any }):
           properties: { agent: { type: "string", description: "Seller agent identifier" } },
           required: ["agent"],
         },
+      }, {
+        name: "verify_deal_verdict",
+        description: "Fetch and verify a persisted deal verdict hash through the backend.",
+        inputSchema: {
+          type: "object",
+          properties: { dealId: { type: "string", description: "Deal identifier" } },
+          required: ["dealId"],
+        },
       }],
     });
+    return;
+  }
+
+  if (message.method === "tools/call" && message.params?.name === "verify_deal_verdict") {
+    const dealId = message.params.arguments?.dealId;
+    if (typeof dealId !== "string" || !dealId.trim()) {
+      reply(message.id, { isError: true, content: [{ type: "text", text: "dealId is required" }] });
+      return;
+    }
+    const response = await fetch(`${backendUrl}/api/judgments/${encodeURIComponent(dealId)}`);
+    const data = await response.json() as {
+      verified?: boolean;
+      verdictHash?: string;
+      verdict?: string;
+      score?: number;
+      modelId?: string;
+      modelVersion?: string;
+      [key: string]: unknown;
+    };
+    const result = response.ok
+      ? {
+          verified: data.verified,
+          verdictHash: data.verdictHash,
+          verdict: data.verdict,
+          score: data.score,
+          modelId: data.modelId,
+          modelVersion: data.modelVersion,
+        }
+      : data;
+    reply(message.id, { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result, isError: !response.ok });
     return;
   }
 

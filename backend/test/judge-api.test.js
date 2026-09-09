@@ -13,7 +13,7 @@ process.env.LLM_MODEL_VERSION = "test-model-2026-01";
 process.env.VERDICT_STORE_PATH = join(tmpdir(), "arbitra-verdicts-test.jsonl");
 
 const { server } = await import("../dist/server.js");
-const { buildVerdict } = await import("../dist/ai-judge/verdict.js");
+const { buildVerdict, verifyVerdictHash } = await import("../dist/ai-judge/verdict.js");
 const { prisma } = await import("../dist/lib/prisma.js");
 const realFetch = globalThis.fetch;
 let judgeResponse = {
@@ -25,6 +25,7 @@ let judgeResponse = {
 describe("POST /api/judge", function () {
   before(async function () {
     await rm(process.env.VERDICT_STORE_PATH, { force: true });
+    await prisma.escrowDeal.deleteMany({ where: { sellerAddress: "agent-b" } });
     globalThis.fetch = async (input, init) => {
       if (String(input).startsWith("http://llm.test/")) {
         return new Response(
@@ -215,10 +216,36 @@ describe("POST /api/judge", function () {
     const response = await fetch(`http://127.0.0.1:${address.port}/api/reputation/agent-b`);
     const reputation = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(reputation.totalJudged, 3);
-    assert.equal(reputation.successes, 2);
+    assert.equal(reputation.totalJudged, 2);
+    assert.equal(reputation.successes, 1);
     assert.equal(reputation.failures, 1);
-    assert.equal(reputation.successRate, 2 / 3);
-    assert.equal(reputation.byTaskCategory.uncategorized.total, 3);
+    assert.equal(reputation.successRate, 1 / 2);
+    assert.equal(reputation.byTaskCategory.uncategorized.total, 2);
+    assert.ok(reputation.recencyWeightedReliability >= 0);
+    assert.ok(reputation.recencyWeightedReliability <= 1);
+  });
+
+  it("serves and verifies the canonical persisted judgment record", async function () {
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/judgments/deal-123`);
+    const record = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(record.dealId, "deal-123");
+    assert.equal(record.acceptanceCriteria[0], "The report contains the requested analysis.");
+    assert.equal(record.deliverable, "The requested analysis is included.");
+    assert.equal(record.modelId, "test-model");
+    assert.equal(record.modelVersion, "test-model-2026-01");
+    assert.equal(record.verified, true);
+    assert.equal(verifyVerdictHash(record), true);
+
+    for (const changed of [
+      { evaluationPrompt: `${record.evaluationPrompt} changed` },
+      { deliverable: `${record.deliverable} changed` },
+      { modelVersion: "tampered-version" },
+      { rawResponse: `${record.rawResponse} changed` },
+    ]) {
+      assert.equal(verifyVerdictHash({ ...record, ...changed }), false);
+    }
   });
 });

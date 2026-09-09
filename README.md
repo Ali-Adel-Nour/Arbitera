@@ -13,7 +13,7 @@
 
 Arbitera is a **trust-minimized, auditable AI escrow and arbitration protocol** for autonomous agents. Agent A queries Agent B's reputation through MCP, decides whether to hire, funds an ERC-20/USDC-compatible escrow, and gets a deterministic AI Judge verdict before the authorized oracle releases payment or refunds the buyer.
 
-> **MVP truth:** reputation currently comes from the backend's append-only verdict index. The response shape is Graph-ready, but this repository does **not** claim a production The Graph subgraph.
+> **MVP truth:** reputation currently comes from Prisma-backed persisted deal records. The response shape is Graph-ready, but this repository does **not** claim a production The Graph subgraph.
 
 ---
 
@@ -95,7 +95,7 @@ The hash commits to the canonical record, including the prompt, rubric, delivera
 1. **Create and fund** — Agent A specifies criteria, seller, deadline, and payment in `ArbiterEscrow`.
 2. **Submit** — Agent B submits a deliverable before the contract deadline.
 3. **Judge** — the backend sends the original task, rubric, and untrusted deliverable to the AI Judge.
-4. **Record** — the backend stores the current deal/verdict projection in SQLite via Prisma and appends the canonical audit record, including score, reasoning, model metadata, raw response, and `verdictHash`, as JSONL.
+4. **Record** — the backend stores the current deal/verdict projection and canonical audit fields in SQLite via Prisma. JSONL remains only an explicit deterministic demo fixture format.
 5. **Settle** — the authorized oracle calls `resolveEscrow` with the verdict hash.
 6. **Reputation** — the settlement record becomes queryable through `GET /api/reputation/:agent` and MCP.
 
@@ -115,11 +115,11 @@ Expected output:
 Arbitra agent hiring decision demo
 MCP source: backend reputation index backed by persisted verdicts
 agent-b: 1/4 successful, 25% success, decision = DO NOT HIRE
-agent-c: 4/4 successful, 100% success, decision = HIRE
+agent-c: 5/5 successful, 100% success, decision = HIRE
 Agent A refuses agent-b and hires agent-c based on returned data.
 ```
 
-The demo launches the backend against [`simulation-agents/data/demo-verdicts.jsonl`](simulation-agents/data/demo-verdicts.jsonl), explicitly selects JSONL persistence so local SQLite state cannot contaminate the fixture, queries the real backend endpoint through the MCP server, and calculates the decision from the returned reputation. Production records use Prisma plus the append-only audit record.
+The demo seeds its explicitly marked fixture records into Prisma, queries the real backend endpoint through the MCP server, calculates the decision from the returned reputation, and verifies a completed audit record through the MCP audit tool. Production records use Prisma as the primary source of truth.
 
 ## 🏗️ Architecture
 
@@ -127,7 +127,7 @@ The demo launches the backend against [`simulation-agents/data/demo-verdicts.jso
 |---|---|---|
 | Smart contract | Solidity `ArbiterEscrow` + OpenZeppelin | Holds ERC-20 funds, enforces state, pays or refunds |
 | AI Judge | TypeScript + LLM chat-completions adapter | Evaluates deliverables against acceptance criteria |
-| Persistence | Prisma + SQLite deal projection, plus canonical JSONL audit record | Keeps current state queryable while preserving the evidence trail |
+| Persistence | Prisma + SQLite persisted deal and canonical audit record | Keeps reputation and audit verification on one source of truth |
 | Oracle integration | Ethers + authorized wallet | Submits `verdictHash` through `resolveEscrow` |
 | Reputation API | Node HTTP server | Aggregates success, failure, recency, category, and history |
 | Agent interface | MCP stdio server | Gives agents structured reputation before hiring |
@@ -158,6 +158,8 @@ The demo launches the backend against [`simulation-agents/data/demo-verdicts.jso
 ```
 
 `GET /api/reputation/:agent` returns judged totals, successes, failures, success/failure rates, recency-weighted reliability, task-category breakdown, and settlement history. The MCP tool `get_agent_reputation` forwards this structured response.
+
+`GET /api/judgments/:dealId` returns the stored canonical evaluation record and a consistency check for its `verdictHash`. This proves that the stored record matches the recorded hash; it does not prove model execution or exactly what the model saw. The MCP tool `verify_deal_verdict` forwards the independent backend verification.
 
 `POST /api/judge-and-settle` runs the same verdict flow and submits the deterministic `verdictHash` to `resolveEscrow`. It requires the `X-Arbitra-Internal-Key` header, configured RPC/escrow/oracle variables, and a bytes32 hex `dealId` for actual on-chain settlement. The legacy `/judge` and `/judge-and-settle` routes remain available for compatibility.
 
