@@ -14,6 +14,8 @@ process.env.VERDICT_STORE_PATH = join(tmpdir(), "arbitra-verdicts-test.jsonl");
 
 const { server } = await import("../dist/server.js");
 const { buildVerdict, verifyVerdictHash } = await import("../dist/ai-judge/verdict.js");
+const { parseJudgeResponse } = await import("../dist/ai-judge/judge.js");
+const { settlementGateway } = await import("../dist/server.js");
 const { prisma } = await import("../dist/lib/prisma.js");
 const realFetch = globalThis.fetch;
 let judgeResponse = {
@@ -21,6 +23,7 @@ let judgeResponse = {
   verdict: "PASS",
   reasoning: "All criteria are satisfied.",
 };
+let lastJudgeRequest;
 
 describe("POST /api/judge", function () {
   before(async function () {
@@ -28,6 +31,7 @@ describe("POST /api/judge", function () {
     await prisma.escrowDeal.deleteMany({ where: { sellerAddress: "agent-b" } });
     globalThis.fetch = async (input, init) => {
       if (String(input).startsWith("http://llm.test/")) {
+        lastJudgeRequest = JSON.parse(init.body);
         return new Response(
           JSON.stringify({
             choices: [{ message: { content: JSON.stringify(judgeResponse) } }],
@@ -75,6 +79,8 @@ describe("POST /api/judge", function () {
     assert.match(verdict.deliverableHash, /^0x[0-9a-f]{64}$/);
     assert.match(verdict.verdictHash, /^0x[0-9a-f]{64}$/);
     assert.equal(verdict.deadline, "2099-01-01T00:00:00.000Z");
+    assert.equal(lastJudgeRequest.response_format.type, "json_schema");
+    assert.deepEqual(lastJudgeRequest.response_format.json_schema.schema.required, ["approved", "verdict", "reasoning"]);
 
     const persisted = await prisma.escrowDeal.findUnique({
       where: { dealId: "deal-123" },
@@ -223,6 +229,57 @@ describe("POST /api/judge", function () {
     assert.equal(reputation.byTaskCategory.uncategorized.total, 2);
     assert.ok(reputation.recencyWeightedReliability >= 0);
     assert.ok(reputation.recencyWeightedReliability <= 1);
+  });
+
+  it("accepts a fenced verdict with surrounding explanation", function () {
+    assert.deepEqual(
+      parseJudgeResponse('Result follows:\n```json\n{"approved":true,"verdict":"PASS","reasoning":"done"}\n```'),
+      { approved: true, verdict: "PASS", reasoning: "done" },
+    );
+  });
+
+  it("rejects malformed JSON, missing fields, and wrong field types", function () {
+    assert.throws(() => parseJudgeResponse("not json"), /invalid JSON/);
+    assert.throws(() => parseJudgeResponse('{"approved":true,"verdict":"PASS"}'), /invalid schema/);
+    assert.throws(() => parseJudgeResponse('{"approved":"true","verdict":"PASS","reasoning":"done"}'), /invalid field types/);
+  });
+
+  it("settles through the structured verdict and persists its canonical hash", async function () {
+    process.env.ARBITRA_INTERNAL_KEY = "test-internal-key";
+    judgeResponse = { approved: true, verdict: "PASS", reasoning: "settlement criteria satisfied" };
+    const originalSettlement = settlementGateway.settleEscrow;
+    settlementGateway.settleEscrow = async (dealId, approved, reasoning, verdictHash) => {
+      assert.equal(dealId, "deal-settle");
+      assert.equal(approved, true);
+      assert.equal(reasoning, "settlement criteria satisfied");
+      assert.match(verdictHash, /^0x[0-9a-f]{64}$/);
+      return { transactionHash: "0xsettlement", reasoningHash: verdictHash };
+    };
+
+    try {
+      const address = server.address();
+      assert.ok(address && typeof address !== "string");
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/judge-and-settle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Arbitra-Internal-Key": "test-internal-key" },
+        body: JSON.stringify({
+          dealId: "deal-settle",
+          acceptanceCriteria: ["Return the requested result."],
+          deliverable: "The requested result.",
+          deadline: "2099-01-01T00:00:00.000Z",
+          seller: "agent-b",
+        }),
+      });
+      const body = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(body));
+      assert.equal(body.settlement.transactionHash, "0xsettlement");
+      assert.equal(body.verdict.verdictHash, body.settlement.reasoningHash);
+      const persisted = await prisma.escrowDeal.findUnique({ where: { dealId: "deal-settle" } });
+      assert.equal(persisted.state, "RESOLVED");
+    } finally {
+      settlementGateway.settleEscrow = originalSettlement;
+      delete process.env.ARBITRA_INTERNAL_KEY;
+    }
   });
 
   it("serves and verifies the canonical persisted judgment record", async function () {

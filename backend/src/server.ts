@@ -14,6 +14,8 @@ import { markDealResolved } from "./persistence.js";
 import { readPersistedJudgment } from "./persistence.js";
 import { verifyVerdictHash } from "./ai-judge/verdict.js";
 
+export const settlementGateway = { settleEscrow };
+
 const PORT = Number(process.env.PORT ?? 3000);
 
 function setCorsHeaders(response: ServerResponse): void {
@@ -319,7 +321,7 @@ export const server = createServer(
         }
 
         const verdict = await evaluateDeal(body);
-        const settlement = await settleEscrow(
+        const settlement = await settlementGateway.settleEscrow(
           body.dealId,
           verdict.approved,
           verdict.reasoning,
