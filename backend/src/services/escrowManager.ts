@@ -1,17 +1,27 @@
-import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { judgeDeliverable } from '../ai-judge/judge.js';
+import { evaluateDeal } from '../ai-judge/verdict.js';
 import { escrowContract, txQueue } from '../blockchain/contractClient.js';
 
 dotenv.config();
 
-const MODEL_ID = process.env.LLM_MODEL || "gpt-4o-mini";
 export const prisma = new PrismaClient();
 export const processedDealsInSession = new Set<string>();
 
+function parseAcceptanceCriteria(criteriaText: string): string[] {
+    try {
+        const parsed: unknown = JSON.parse(criteriaText);
+        if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string' && item.trim())) {
+            return parsed;
+        }
+    } catch {
+        // The on-chain criteria field may be a plain hash/string in fallback mode.
+    }
+    return [criteriaText];
+}
+
 // ---------------------------------------------------------------------------
-// 2. CORE SETTLEMENT LOGIC (AI Judgment + Attestation Hash + On-Chain Tx)
+// 2. CORE SETTLEMENT LOGIC (AI Judgment + Canonical Verdict Hash + On-Chain Tx)
 // ---------------------------------------------------------------------------
 export async function processDealSettlement(dealId: string, deliverableHash: string) {
     if (processedDealsInSession.has(dealId)) {
@@ -47,22 +57,21 @@ export async function processDealSettlement(dealId: string, deliverableHash: str
         console.log(`📦 Deliverable: "${deliverableText.slice(0, 80)}..."`);
 
         // Step C: Trigger the AI Judge Engine
-        console.log(`🤖 Invoking AI Judge Engine (${MODEL_ID})...`);
-        const verdict = await judgeDeliverable({
-            task: "Escrow Deliverable Evaluation",
-            acceptanceCriteria: criteriaText,
-            deliverable: deliverableText
+        console.log(`🤖 Invoking AI Judge Engine...`);
+        const verdict = await evaluateDeal({
+            dealId,
+            acceptanceCriteria: parseAcceptanceCriteria(criteriaText),
+            deliverable: deliverableText,
+            deadline: Number(onChainDeal.deadline),
+            buyer: onChainDeal.buyer,
+            seller: onChainDeal.seller,
         });
 
         console.log(`⚖️  Judge Verdict: ${verdict.approved ? '✅ APPROVED' : '❌ REJECTED'}`);
         console.log(`📝 Reason: ${verdict.reasoning}`);
 
-        // Step D: Generate Cryptographic Attestation Hash
-        const attestationHash = ethers.solidityPackedKeccak256(
-            ['string', 'string', 'string', 'bool'],
-            [criteriaText, deliverableText, MODEL_ID, verdict.approved]
-        );
-        console.log(`🔒 Attestation Hash: ${attestationHash}`);
+        // The canonical verdict hash is also the on-chain audit reference.
+        console.log(`🔒 Verdict Hash: ${verdict.verdictHash}`);
 
         // Step E: Enqueue On-Chain Transaction Execution (Serialized Nonces)
         await txQueue.enqueue(async () => {
@@ -71,7 +80,7 @@ export async function processDealSettlement(dealId: string, deliverableHash: str
             const tx = await escrowContract.resolveEscrow(
                 dealId,
                 verdict.approved,
-                attestationHash
+                verdict.verdictHash
             );
             console.log(`🚀 Tx Broadcasted: ${tx.hash}. Waiting for block inclusion...`);
             
@@ -85,7 +94,7 @@ export async function processDealSettlement(dealId: string, deliverableHash: str
                     state: verdict.approved ? 'ResolvedSuccess' : 'ResolvedRefund',
                     aiVerdict: verdict.approved,
                     aiReasoning: verdict.reasoning,
-                    verdictHash: attestationHash,
+                    verdictHash: verdict.verdictHash,
                     resolvedTxHash: tx.hash
                 }
             }).catch(() => {
