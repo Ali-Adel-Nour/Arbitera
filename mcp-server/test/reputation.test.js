@@ -96,7 +96,7 @@ describe("reputation MCP tool", function () {
       response.end(JSON.stringify({ data: { escrows: [{
         id: "0xdeal", dealId: "0xdeal", buyer: "0xbuyer", seller: "0xseller", token: "0xtoken",
         amount: "100", criteriaHash: "criteria", deadline: "200", state: "ResolvedSuccess",
-        approved: true, createdTransactionHash: "0xcreate", createdBlockNumber: "10",
+        approved: true, verdictReasoningHash: "0xreasoning", createdTransactionHash: "0xcreate", createdBlockNumber: "10",
         submittedTransactionHash: "0xsubmit", submittedBlockNumber: "11",
         resolvedTransactionHash: "0xresolve", resolvedBlockNumber: "12",
       }] } }));
@@ -118,8 +118,10 @@ describe("reputation MCP tool", function () {
 
     const result = JSON.parse(output.join("")).result.structuredContent;
     assert.equal(result.source, "graph");
+    assert.equal(result.sourceReason, "graph");
     assert.equal(result.successRate, 1);
     assert.equal(result.history[0].resolvedTransactionHash, "0xresolve");
+    assert.equal(result.history[0].verdictReasoningHash, "0xreasoning");
   });
 
   it("falls back to the backend when Graph is empty or malformed", async function () {
@@ -150,6 +152,32 @@ describe("reputation MCP tool", function () {
 
     const result = JSON.parse(output.join("")).result.structuredContent;
     assert.equal(result.source, "backend");
+    assert.equal(result.sourceReason, "graph_empty");
     assert.equal(result.totalJudged, 1);
+  });
+
+  it("labels an unreachable Graph endpoint when using backend fallback", async function () {
+    const backend = createServer((request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ agent: "agent-b", totalJudged: 0, successes: 0, failures: 0, successRate: 0, failureRate: 0 }));
+    });
+    backend.listen(0);
+    await once(backend, "listening");
+    const address = backend.address();
+    assert.ok(address && typeof address !== "string");
+
+    const child = spawn(process.execPath, ["dist/index.js"], {
+      env: { ...process.env, GRAPH_ENDPOINT: "http://127.0.0.1:1", ARBITRA_BACKEND_URL: `http://127.0.0.1:${address.port}` },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const output = [];
+    child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    child.stdin.end(JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "get_agent_reputation", arguments: { agent: "agent-b" } } }) + "\n");
+    await once(child, "close");
+    await new Promise((resolve) => backend.close(resolve));
+
+    const result = JSON.parse(output.join(""));
+    assert.equal(result.result.structuredContent.source, "backend");
+    assert.equal(result.result.structuredContent.sourceReason, "graph_unavailable");
   });
 });

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { execFileSync } from "node:child_process";
+import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -90,6 +91,42 @@ async function seedDemoPersistence(): Promise<void> {
   await persistVerdict(audit);
 }
 
+function startMockGraph(records: Array<{ dealId: string; seller: string; approved: boolean; timestamp: string }>) {
+  const graph = createServer(async (request, response) => {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const variables = JSON.parse(body).variables as { seller?: string } | undefined;
+    const seller = variables?.seller?.toLowerCase();
+    const escrows = records
+      .filter((record) => !seller || record.seller.toLowerCase() === seller)
+      .map((record, index) => ({
+        id: record.dealId,
+        dealId: record.dealId,
+        buyer: "agent-a",
+        seller: record.seller,
+        token: "demo-token",
+        amount: "100",
+        criteriaHash: "demo-criteria",
+        deadline: "4102444800",
+        state: record.approved ? "ResolvedSuccess" : "ResolvedRefund",
+        deliverableHash: "demo-deliverable",
+        approved: record.approved,
+        verdictReasoningHash: `demo-reasoning-${record.dealId}`,
+        createdTransactionHash: `demo-create-${index}`,
+        createdBlockNumber: String(index + 1),
+        submittedTransactionHash: `demo-submit-${index}`,
+        submittedBlockNumber: String(index + 2),
+        resolvedTransactionHash: `demo-resolve-${index}`,
+        resolvedBlockNumber: String(index + 3),
+        createdAt: String(Math.floor(Date.parse(record.timestamp) / 1000)),
+        updatedAt: String(Math.floor(Date.parse(record.timestamp) / 1000)),
+      }));
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify({ data: { escrows, escrow: escrows[0] ?? null } }));
+  });
+  return graph;
+}
+
 interface Reputation {
   agent: string;
   totalJudged: number;
@@ -162,12 +199,25 @@ function decisionFor(reputation: Reputation): "HIRE" | "DO NOT HIRE" {
 
 async function main(): Promise<void> {
   await seedDemoPersistence();
+  const fixture = (await readFile(verdictStorePath, "utf8"))
+    .split(/\r?\n/).filter(Boolean)
+    .map((line) => JSON.parse(line) as { dealId: string; seller: string; approved: boolean; timestamp: string });
+  const graph = startMockGraph(fixture);
+  graph.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => graph.once("listening", () => resolve()));
+  const graphAddress = graph.address();
+  if (!graphAddress || typeof graphAddress === "string") throw new Error("Mock Graph did not start");
   const backend = start("backend/dist/server.js", [], {
     ...process.env,
     PORT: String(backendPort),
     DATABASE_URL: "file:./demo.db",
     ARBITRA_PERSISTENCE: "prisma",
     ARBITRA_NO_LISTEN: "false",
+    // The demo only reads Prisma and does not submit blockchain transactions.
+    // These syntactically valid placeholders keep the backend's blockchain
+    // listener initialization from terminating the local audit demo.
+    ARBITER_ESCROW_ADDRESS: "0x0000000000000000000000000000000000000001",
+    ARBITER_ORACLE_PRIVATE_KEY: "0x1111111111111111111111111111111111111111111111111111111111111111",
   });
 
   try {
@@ -176,6 +226,7 @@ async function main(): Promise<void> {
       const mcp = start("mcp-server/dist/index.js", [], {
         ...process.env,
         ARBITRA_BACKEND_URL: backendUrl,
+        GRAPH_ENDPOINT: `http://127.0.0.1:${graphAddress.port}`,
       });
       try {
         return await queryMcp(mcp, agent);
@@ -188,7 +239,7 @@ async function main(): Promise<void> {
     const agentC = await query("agent-c");
 
     console.log("Arbitra agent hiring decision demo");
-    console.log("MCP source: Prisma-backed reputation records");
+    console.log("MCP source: local Graph adapter backed by deterministic escrow fixtures");
     for (const reputation of [agentB, agentC]) {
       console.log(
         `Agent A → MCP reputation query → ${reputation.agent}: ` +
@@ -229,6 +280,7 @@ async function main(): Promise<void> {
     }
   } finally {
     backend.kill();
+    await new Promise<void>((resolve) => graph.close(() => resolve()));
     await prisma.$disconnect();
   }
 }

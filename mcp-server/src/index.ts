@@ -57,7 +57,7 @@ async function handle(message: { id?: unknown; method?: string; params?: any }):
       reply(message.id, { isError: true, content: [{ type: "text", text: "dealId is required" }] });
       return;
     }
-    const data = await service.getDeal(dealId) as {
+    const data = await service.getAudit(dealId) as {
       verified?: boolean;
       verdictHash?: string;
       verdict?: string;
