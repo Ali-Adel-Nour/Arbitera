@@ -1,5 +1,8 @@
+import * as dotenv from "dotenv";
+dotenv.config();
+
 import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
-import { configVariable, defineConfig } from "hardhat/config";
+import { defineConfig } from "hardhat/config";
 
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthersPlugin],
@@ -28,11 +31,12 @@ export default defineConfig({
       type: "edr-simulated",
       chainType: "op",
     },
-    sepolia: {
+    arcTestnet: {
       type: "http",
       chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
-    },
+      url: "https://rpc.testnet.arc.network",
+      chainId: 5042002,
+      accounts: [process.env.ARC_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000"],
+    }
   },
 });
