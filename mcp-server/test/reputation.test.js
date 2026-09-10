@@ -4,7 +4,40 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { describe, it } from "mocha";
 
+async function invokeMcp(line, env = {}) {
+  const child = spawn(process.execPath, ["dist/index.js"], {
+    env: { ...process.env, ...env },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  const output = [];
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stdin.end(line);
+  await once(child, "close");
+  return JSON.parse(output.join(""));
+}
+
 describe("reputation MCP tool", function () {
+  it("returns protocol errors for malformed JSON and unknown methods", async function () {
+    const parseError = await invokeMcp("{not-json}\n");
+    assert.equal(parseError.error.code, -32700);
+    const invalidRequest = await invokeMcp("null\n");
+    assert.equal(invalidRequest.error.code, -32600);
+    const methodError = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 6, method: "not/method" }) + "\n");
+    assert.equal(methodError.error.code, -32601);
+  });
+
+  it("returns structured errors for unknown tools and invalid arguments", async function () {
+    const unknownTool = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "missing_tool", arguments: {} } }) + "\n");
+    assert.equal(unknownTool.result.isError, true);
+    assert.match(unknownTool.result.structuredContent.error, /Unknown tool/);
+    const invalidArguments = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "get_agent_reputation", arguments: { agent: "  " } } }) + "\n");
+    assert.equal(invalidArguments.result.isError, true);
+    assert.equal(invalidArguments.result.structuredContent.error, "agent is required");
+    const executionFailure = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "get_agent_reputation", arguments: { agent: "agent-b" } } }) + "\n", { ARBITRA_BACKEND_URL: "http://127.0.0.1:1" });
+    assert.equal(executionFailure.result.isError, true);
+    assert.match(executionFailure.result.structuredContent.error, /fetch failed|Backend reputation request failed/);
+  });
+
   it("returns structured reputation an agent can use for hiring", async function () {
     const http = createServer((request, response) => {
       response.setHeader("Content-Type", "application/json");
@@ -179,5 +212,37 @@ describe("reputation MCP tool", function () {
     const result = JSON.parse(output.join(""));
     assert.equal(result.result.structuredContent.source, "backend");
     assert.equal(result.result.structuredContent.sourceReason, "graph_unavailable");
+  });
+
+  it("returns indexed deal evidence from Graph and keeps audit fallback backend-labeled", async function () {
+    const indexed = createServer((request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ data: { escrow: {
+        id: "0xdeal", dealId: "0xdeal", buyer: "0xbuyer", seller: "0xseller", token: "0xtoken",
+        amount: "100", criteriaHash: "criteria", deadline: "200", state: "ResolvedSuccess", approved: true,
+        createdTransactionHash: "0xcreate", createdBlockNumber: "10", verdictReasoningHash: "0xreasoning",
+      } } }));
+    });
+    indexed.listen(0);
+    await once(indexed, "listening");
+    const indexedAddress = indexed.address();
+    assert.ok(indexedAddress && typeof indexedAddress !== "string");
+    const graphResult = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "get_indexed_deal", arguments: { dealId: "0xDEAL" } } }) + "\n", { GRAPH_ENDPOINT: `http://127.0.0.1:${indexedAddress.port}` });
+    assert.equal(graphResult.result.structuredContent.source, "graph");
+    assert.equal(graphResult.result.structuredContent.verdictReasoningHash, "0xreasoning");
+    await new Promise((resolve) => indexed.close(resolve));
+
+    const backend = createServer((request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ verified: true, verdictHash: "0xhash", verdict: "PASS" }));
+    });
+    backend.listen(0);
+    await once(backend, "listening");
+    const backendAddress = backend.address();
+    assert.ok(backendAddress && typeof backendAddress !== "string");
+    const fallbackResult = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "get_indexed_deal", arguments: { dealId: "0xDEAL" } } }) + "\n", { GRAPH_ENDPOINT: "http://127.0.0.1:1", ARBITRA_BACKEND_URL: `http://127.0.0.1:${backendAddress.port}` });
+    assert.equal(fallbackResult.result.structuredContent.source, "backend");
+    assert.equal(fallbackResult.result.structuredContent.sourceReason, "graph_unavailable");
+    await new Promise((resolve) => backend.close(resolve));
   });
 });
