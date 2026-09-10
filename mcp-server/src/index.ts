@@ -121,6 +121,10 @@ async function handleLine(line: string): Promise<void> {
     protocolError(null, -32700, "Parse error");
     return;
   }
+  if (!message || typeof message !== "object" || Array.isArray(message)) {
+    protocolError(null, -32600, "Invalid Request");
+    return;
+  }
   try {
     await handle(message);
   } catch (error) {

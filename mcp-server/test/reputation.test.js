@@ -20,6 +20,8 @@ describe("reputation MCP tool", function () {
   it("returns protocol errors for malformed JSON and unknown methods", async function () {
     const parseError = await invokeMcp("{not-json}\n");
     assert.equal(parseError.error.code, -32700);
+    const invalidRequest = await invokeMcp("null\n");
+    assert.equal(invalidRequest.error.code, -32600);
     const methodError = await invokeMcp(JSON.stringify({ jsonrpc: "2.0", id: 6, method: "not/method" }) + "\n");
     assert.equal(methodError.error.code, -32601);
   });
