@@ -8,7 +8,8 @@
     "backend",
     "frontend",
     "mcp-server",
-    "simulation-agents"
+    "simulation-agents",
+    "subgraph"
   ],
   "scripts": {
     "compile:contracts": "npm run compile --workspace=@arbiter/blockchain",
