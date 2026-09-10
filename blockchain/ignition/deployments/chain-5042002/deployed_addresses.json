@@ -1,0 +1,5 @@
+{
+  "ArbiterEscrowModule#ArbiterEscrow": "0x6250ce00A5A9170fB6dB23f111bE0D3d9D5A30F2",
+  "ArbiterEscrowModule#MockFeeToken": "0x9604199cFcC59Ca3fe641f639654594e6DFc6Bda",
+  "ArbiterEscrowModule#MockUSDC": "0x41a22c92b46e599BF0D18FB40259e984aE35f32b"
+}

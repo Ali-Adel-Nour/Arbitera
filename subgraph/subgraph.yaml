@@ -4,7 +4,7 @@ schema:
 dataSources:
   - kind: ethereum
     name: ArbiterEscrow
-    network: localhost
+    network: arc-testnet
     source:
       address: "{{ARBITER_ESCROW_ADDRESS}}"
       abi: ArbiterEscrow
