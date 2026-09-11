@@ -4,7 +4,9 @@
 
 Arbitra is a trust-minimized, auditable AI escrow and arbitration protocol for autonomous agents. A buyer agent queries a seller agent's reputation over MCP, funds an ERC-20/USDC escrow, the seller submits a deliverable, an AI Judge evaluates it against an acceptance rubric, and an authorized oracle resolves the escrow to pay the seller or refund the buyer. Every verdict commits a deterministic canonical hash on-chain, and resolutions feed the reputation index other agents query before hiring.
 
-This specification covers the FRONTEND ONLY. Contracts, backend, agents, and the MCP server are owned by teammates. The frontend is the EVIDENCE SURFACE for a split-screen demo: an agent acts in a terminal on the left, this interface proves on the right what happened. Deals are created and settled by agents over MCP, so the interface is not the driver of the protocol — no reviewer clicks through a form to make the demo work. Every screen answers two questions: what happened, and can I verify it.
+This specification covers the FRONTEND ONLY. Contracts, backend, agents, and the MCP server are owned by teammates. The frontend is primarily the EVIDENCE SURFACE for a split-screen demo: an agent acts in a terminal on the left, this interface proves on the right what happened. The agent-to-agent loop over MCP remains the protocol's intended path, and every screen answers two questions: what happened, and can I verify it.
+
+The frontend is ALSO the ORIGINATION SURFACE for the on-chain escrow. Deal creation and deliverable submission are signed from the browser through an injected wallet, because the oracle has nothing to settle until a funded on-chain deal exists: a deal recorded only in backend persistence causes the settlement call to revert with missing revert data. Deal origination writes the escrow on-chain; deliverable submission persists the deliverable text through the backend and then commits its hash on-chain. Settlement remains oracle-driven and is never initiated from the browser — the interface observes settlement through the Docket poll.
 
 The interface must also hold a strict trust-model line. Arbitra does not claim trustless AI arbitration. The contract is the trustless custody boundary; the language model, backend persistence, and oracle key are trusted infrastructure. Hashes make that boundary inspectable and tamper-evident. Verification proves that a stored record matches its hash — it does not prove what the model saw or that the model was honest.
 
@@ -31,6 +33,10 @@ The interface must also hold a strict trust-model line. Arbitra does not claim t
 - **Deliberating**: A frontend-derived display state meaning the on-chain state is `Submitted` and a judge call is in flight. It is not an on-chain state.
 - **Machine_Identity_Data**: Hashes, wallet addresses, deal identifiers, transaction hashes, model identifiers, and agent identifier strings.
 - **Derived_Metric**: A value Arbitra_Frontend computes or a fixture supplies rather than reading from a shipped backend route: trust score, badge tier, `totalUsdcSettled`, dispute rate by task category, and the agent list.
+- **Arc_Testnet**: The target chain for Arbitra_Frontend, chain ID 5042002 (hexadecimal `0x4CEF52`), whose native gas token is USDC rather than ETH, and whose block explorer is Blockscout-based at a host supplied through `NEXT_PUBLIC_EXPLORER_TX_BASE`.
+- **Wallet_Connection**: The component and state layer that requests accounts from an injected EIP-1193 provider, reports the connected address and chain, and keeps Arbitra_Frontend aligned with Arc_Testnet.
+- **Deal_Origination**: The wallet-signed flow through which a buyer approves an ERC-20 allowance and calls `createAndFundEscrow` to write a funded escrow on-chain.
+- **Deliverable_Submission**: The two-step flow through which a seller's deliverable text is persisted through the backend and its hash is then committed on-chain by a wallet-signed `submitDeliverable` call.
 
 ## Requirements
 
@@ -196,18 +202,20 @@ The interface must also hold a strict trust-model line. Arbitra does not claim t
 7. IF a judge request returns a 400 response because acceptance criteria are empty or the deadline is not in the future, THEN THE Injection_Sandbox SHALL surface the returned error text alongside the field that caused the rejection.
 8. WHILE a judge request is in flight, THE Injection_Sandbox SHALL indicate the pending state and SHALL reject duplicate submissions of the same preset.
 
-### Requirement 12: Settlement links and undeployed-contract honesty
+### Requirement 12: Settlement links, Arc Testnet targeting, and undeployed-contract honesty
 
-**User Story:** As a reviewer, I want the settlement reference to stay truthful before the contract is deployed, so that I never click a link into nothing.
+**User Story:** As a reviewer, I want the settlement reference and the network copy to stay truthful before the explorer host and contract address are confirmed, so that I never click a link into nothing and never read a network name the deal was not settled on. The deployed `ArbiterEscrow` address reaches the interface through `NEXT_PUBLIC_ESCROW_ADDRESS` and is not committed to source.
 
 #### Acceptance Criteria
 
 1. THE Arbitra_Frontend SHALL read the escrow contract address from `NEXT_PUBLIC_ESCROW_ADDRESS` and the explorer transaction base URL from `NEXT_PUBLIC_EXPLORER_TX_BASE`.
-2. WHERE `NEXT_PUBLIC_EXPLORER_TX_BASE` is unset, THE Arbitra_Frontend SHALL default the explorer transaction base to `https://sepolia.etherscan.io/tx/`.
+2. WHERE `NEXT_PUBLIC_EXPLORER_TX_BASE` is unset, THE Settlement_Link SHALL render the transaction hash in monospace with a copy affordance and no anchor element, and SHALL omit any assumed explorer host.
 3. WHEN `NEXT_PUBLIC_ESCROW_ADDRESS` is set, THE Settlement_Link SHALL render the transaction hash as a link to the explorer transaction base concatenated with the transaction hash.
 4. IF `NEXT_PUBLIC_ESCROW_ADDRESS` is unset, THEN THE Settlement_Link SHALL render the transaction hash in monospace with a copy affordance and a single restrained note stating that the contract is not yet deployed.
-5. THE Arbitra_Frontend SHALL target the Sepolia network in all chain-related copy and SHALL omit any reference to a network named "Arc".
+5. THE Arbitra_Frontend SHALL name Arc Testnet in all chain-related copy, and WHERE a network is identified in interface copy, THE Arbitra_Frontend SHALL state the chain ID 5042002.
 6. THE Arbitra_Frontend SHALL contain no hardcoded escrow contract address.
+7. WHERE the interface describes transaction cost, THE Arbitra_Frontend SHALL state that gas on Arc Testnet is denominated in USDC as the native token, and SHALL direct a reader who needs gas to acquire USDC rather than ETH.
+8. THE Arbitra_Frontend SHALL read the deployed `ArbiterEscrow` address only from `NEXT_PUBLIC_ESCROW_ADDRESS`, and THE Repository_Workflow SHALL keep that address value out of every committed file.
 
 ### Requirement 13: Trust-model copy discipline
 
@@ -221,25 +229,29 @@ The interface must also hold a strict trust-model line. Arbitra does not claim t
 4. WHERE the interface describes what verification proves, THE Arbitra_Frontend SHALL state that verification proves a stored record matches its hash, and SHALL state that verification does not prove what the model received or that the model was honest.
 5. THE Arbitra_Frontend SHALL use the term "tamper-evident" in place of "verified" when describing the outcome of a successful hash comparison.
 6. THE Arbitra_Frontend SHALL cover criteria 2 and 3 with an automated check over source and content files that fails the build when a banned phrase appears.
+7. THE automated check named in criterion 6 SHALL exclude Arc used as a network name from its banned set, so that the copy required by Requirement 12 criterion 5 passes the check, and SHALL continue to fail the build on the phrase "verified inference" and on copy claiming trustless AI arbitration.
 
 ### Requirement 14: Visual design system and per-screen review checklist
 
-**User Story:** As a reviewing engineer, I want the interface to read like a court record rendered for machines, so that the presentation reinforces the auditability claim instead of competing with it.
+**User Story:** As a reviewing engineer, I want the interface to read like an instrument panel over a court record, so that the dark dashboard presentation carries the evidence structure rather than flattening it into generic cards.
 
 #### Acceptance Criteria
 
 1. THE Design_System SHALL define exactly two typefaces: one grotesk for prose and interface text, and one monospace reserved for Machine_Identity_Data.
-2. THE Design_System SHALL define a named type scale, and every text element SHALL take its size from a step in that scale.
-3. THE Arbitra_Frontend SHALL restrict monospace type to Machine_Identity_Data values.
-4. THE Design_System SHALL assign a documented meaning to each border, rule, and divider token, and THE Arbitra_Frontend SHALL apply those tokens only where the documented meaning holds.
-5. THE Design_System SHALL define state colors for settled-paid, settled-refunded, deliberating, and expired, and every state indicator SHALL pair its color with a text label.
-6. THE Arbitra_Frontend SHALL use zero glassmorphism surfaces, zero neon-on-near-black color pairings, and zero gradient washes applied as decoration.
-7. THE Arbitra_Frontend SHALL differentiate container treatment by content kind rather than applying one identical rounded-and-shadowed card to every kind of content.
-8. THE Arbitra_Frontend SHALL contain zero tracked-out all-capitals eyebrow labels positioned above headings.
-9. THE Arbitra_Frontend SHALL contain zero button labels ending in an arrow glyph and zero metadata strings joined by middle-dot separators.
-10. THE Arbitra_Frontend SHALL contain zero fade-and-slide-up entrance animations, and SHALL limit animated motion to the single verdict moment defined in Requirement 7 criterion 7.
-11. THE Arbitra_Frontend SHALL apply hover-triggered animation to zero list or card elements.
-12. THE Arbitra_Frontend SHALL record a per-screen review checklist covering criteria 1 through 11, and each screen SHALL pass that checklist before its work is considered complete.
+2. THE Design_System SHALL define a named type scale that includes a caption-and-label step, and every text element SHALL take its size from a step in that scale.
+3. THE Arbitra_Frontend SHALL restrict monospace type to Machine_Identity_Data values, and SHALL render every label, heading, navigation item, status pill text, button label, and body passage in the grotesk typeface.
+4. THE Design_System SHALL define a dark surface system naming one base background token, at least two lifted panel elevation tokens, and at least one border token, and THE Arbitra_Frontend SHALL differentiate panel surfaces by elevation token and border token rather than by shadow alone.
+5. THE Design_System SHALL define one primary accent token for interactive affordance, at most one secondary accent token, and state colors for settled-paid, settled-refunded, deliberating, and expired, and every state indicator SHALL pair its color with a text label.
+6. WHERE a status is rendered as a colored pill, THE Arbitra_Frontend SHALL render the pill's state text inside the pill, so that zero status indications rely on color alone.
+7. THE Arbitra_Frontend SHALL differentiate container treatment by content kind, rendering an evidence exhibit, a hash strip row, a docket entry, a log line, an agent row, a stat block, and a verdict banner as structurally distinguishable treatments within the shared dark panel idiom rather than as one identical card.
+8. THE Design_System SHALL assign a documented meaning to each border, rule, and divider token, and THE Arbitra_Frontend SHALL apply those tokens only where the documented meaning holds, so that a reader can determine which displayed fields are inside the hashed verdict preimage and which are excluded from it from the structural treatment alone.
+9. WHERE a gradient is used, THE Arbitra_Frontend SHALL restrict gradients to at most one gradient-treated heading phrase across the application and at most one gradient rail or divider across the application, and SHALL convey zero information by gradient alone.
+10. WHERE a tracked-out all-capitals label is used, THE Arbitra_Frontend SHALL take that label's size and letter-spacing from the caption-and-label step named in criterion 2, and SHALL use zero tracked-out all-capitals text as a substitute for a heading step of the type scale.
+11. THE Arbitra_Frontend SHALL render metadata as labeled pairs, and SHALL contain zero metadata strings joined by middle-dot separators; this is a deliberate divergence from the supplied visual reference, taken because a middle-dot string renders a flat assertion where the interface requires individually labeled and addressable values.
+12. THE Arbitra_Frontend SHALL limit entrance animation to the single verdict moment defined in Requirement 7 criterion 7, SHALL contain zero fade-and-slide-up entrance animations applied to page sections, and WHERE motion is applied to an interactive state change such as hover, focus, active, status pill transition, or progress rail advance, THE Arbitra_Frontend SHALL complete that transition within 200 milliseconds.
+13. THE Arbitra_Frontend SHALL spend its boldest single treatment on the Verdict_Record screen, measured as the largest type scale step and the most saturated or highest-contrast surface treatment appearing on that screen and on no other screen.
+14. THE Arbitra_Frontend SHALL derive every displayed figure from data the interface holds, or SHALL replace that figure with an empty state naming the action that would produce it, and SHALL display zero placeholder, sample, or illustrative figures.
+15. THE Arbitra_Frontend SHALL record a per-screen review checklist covering criteria 1 through 14, and each screen SHALL pass that checklist before its work is considered complete.
 
 ### Requirement 15: Quality floor
 
@@ -253,6 +265,7 @@ The interface must also hold a strict trust-model line. Arbitra does not claim t
 4. WHILE the user agent reports `prefers-reduced-motion: reduce`, THE Arbitra_Frontend SHALL replace the verdict motion moment with a static state change.
 5. THE Arbitra_Frontend SHALL meet a contrast ratio of at least 4.5 to 1 for body text and at least 3 to 1 for large text and interface boundaries against their backgrounds.
 6. THE Arbitra_Frontend SHALL omit interface copy announcing its own accessibility or responsiveness.
+7. THE Design_System SHALL document the computed contrast ratio of every permitted foreground token and background token pairing, so that the thresholds stated in criterion 5 are checked by comparing recorded ratios rather than asserted.
 
 ### Requirement 16: States, errors, and contract error copy
 
@@ -297,26 +310,57 @@ The interface must also hold a strict trust-model line. Arbitra does not claim t
 3. THE Deployment_Process SHALL leave `NEXT_PUBLIC_API_BASE` unset for the first deployment so that the deployed application serves fixture data from its own Mock_API.
 4. WHEN the first deployment completes, THE Arbitra_Frontend SHALL serve every screen from fixtures at the returned URL.
 
-## Optional Requirements (below the cut line)
+## Write Path Requirements
 
-These requirements are explicitly optional. Implement them only after Requirements 1 through 18 are satisfied.
+These requirements are core. They are built on top of Requirements 1 through 18 rather than before them, so that the evidence screens are demo-ready at every point in the build.
 
-### Requirement 19 (Optional): Manual deal forms as a stage fallback
+### Requirement 19: Wallet connection and network
 
-**User Story:** As the presenter, I want a manual path to create an escrow and submit work, so that a failing agent path does not end the demo.
-
-#### Acceptance Criteria
-
-1. WHERE the manual fallback feature is enabled, THE Arbitra_Frontend SHALL provide a form to create an escrow with buyer, seller, token, amount, acceptance criteria, and deadline fields.
-2. WHERE the manual fallback feature is enabled, THE Arbitra_Frontend SHALL provide a form to submit a deliverable for an existing deal identifier.
-3. WHERE the manual fallback feature is enabled, THE Arbitra_Frontend SHALL state in visible copy that the manual path is a fallback and that the protocol's normal path is agent-driven over MCP.
-
-### Requirement 20 (Optional): Wallet connection
-
-**User Story:** As a visitor with a wallet, I want to connect it, so that I can act as buyer or seller directly.
+**User Story:** As a buyer or seller acting from the browser, I want to connect my wallet and know it is pointed at the right chain, so that a signature I approve lands on Arc Testnet instead of somewhere else.
 
 #### Acceptance Criteria
 
-1. WHERE the wallet feature is enabled, THE Arbitra_Frontend SHALL offer a connect control that requests accounts from an injected Ethereum provider.
-2. WHERE the wallet feature is enabled AND a wallet is connected, THE Arbitra_Frontend SHALL display the connected address in monospace with truncation.
-3. WHERE the wallet feature is enabled, IF the connected chain is not Sepolia, THEN THE Arbitra_Frontend SHALL state the required network and the action needed to switch.
+1. THE Wallet_Connection SHALL offer a connect control that requests accounts from an injected EIP-1193 provider.
+2. WHILE an account is connected, THE Wallet_Connection SHALL render the connected address in the monospace typeface in truncated form and SHALL expose the full address value on copy.
+3. IF the connected chain identifier is not 5042002, THEN THE Wallet_Connection SHALL state that Arc_Testnet is required and SHALL offer a control that requests a switch.
+4. WHEN a reviewer activates the switch control, THE Wallet_Connection SHALL call `wallet_switchEthereumChain` with the chain identifier `0x4CEF52`.
+5. IF `wallet_switchEthereumChain` reports that the chain is unknown to the provider, THEN THE Wallet_Connection SHALL call `wallet_addEthereumChain` with the chain identifier `0x4CEF52` and a native currency symbol of USDC, and SHALL retry the switch.
+6. WHEN no injected provider is present, THE Wallet_Connection SHALL state that no wallet was detected and SHALL name the action the reader can take, rather than rendering a control that produces no effect.
+7. WHEN the provider emits an `accountsChanged` or `chainChanged` event, THE Wallet_Connection SHALL update the displayed address and network state without a page reload.
+8. IF a wallet request fails, THEN THE Wallet_Connection SHALL state the cause and the recovery action in the interface's own voice.
+9. IF the account holder rejects a wallet request, THEN THE Wallet_Connection SHALL return the interface to the state held before the request and SHALL render no error state.
+
+### Requirement 20: Deal origination and deliverable submission
+
+**User Story:** As a buyer and as a seller, I want to create a funded escrow and submit work from the browser, so that the oracle has a real on-chain deal to settle instead of a record that exists only in backend persistence.
+
+#### Acceptance Criteria
+
+1. THE Deal_Origination SHALL collect a seller address, a token address, an amount, acceptance criteria text, and a deadline duration in seconds.
+2. WHEN a buyer submits the Deal_Origination inputs, THE Deal_Origination SHALL request an ERC-20 `approve` for the collected amount against the collected token address, and SHALL request `createAndFundEscrow(dealId, seller, token, amount, criteriaHash, durationSeconds)` only after the approval transaction succeeds.
+3. THE Deal_Origination SHALL generate each `dealId` as 32 bytes of hexadecimal whose value is not zero, and SHALL generate a `dealId` value it has not previously submitted, because the contract reverts with `DealAlreadyExists` for a repeated identifier.
+4. THE Deal_Origination SHALL compute `criteriaHash` with the Canonicalizer over the collected acceptance criteria text, so that the value committed on-chain equals the value Verify_Panel later recomputes; this equality is the link between the write path and the verification claim.
+5. THE Deliverable_Submission SHALL send the deliverable text to the backend for persistence before requesting any signature, and SHALL request the `submitDeliverable` signature only after the persistence request returns a success response.
+6. IF persistence succeeds and the `submitDeliverable` signature is rejected or the transaction fails, THEN THE Deliverable_Submission SHALL state that the deliverable is saved but not yet submitted on-chain, and SHALL offer a retry control that requests the signature again without sending the deliverable text a second time.
+7. THE Arbitra_Frontend SHALL call zero `resolveEscrow` transactions and SHALL hold zero oracle keys; THE Arbitra_Frontend SHALL learn of settlement through the Docket poll defined in Requirement 9.
+8. WHILE a signature request is awaited, THE Arbitra_Frontend SHALL indicate that a wallet signature is pending; WHILE a submitted transaction is mining, THE Arbitra_Frontend SHALL indicate that the transaction is mining and SHALL distinguish that state from the pending-signature state.
+9. WHEN a transaction hash becomes available, THE Arbitra_Frontend SHALL render that hash through the Settlement_Link treatment defined in Requirement 12.
+10. IF a write transaction reverts, THEN THE Arbitra_Frontend SHALL surface the corresponding message from the ten contract errors mapped in Requirement 16 criterion 5.
+11. THE Arbitra_Frontend SHALL represent every token amount as an integer value at USDC's 6 decimals, and SHALL pass zero token amounts through the JavaScript `number` type.
+
+### Requirement 21: The write path does not compromise the read path
+
+**User Story:** As a reviewer who has not installed a wallet, I want every evidence screen to work anyway, so that I can judge the submission from a plain browser and from the fixture deployment.
+
+#### Acceptance Criteria
+
+1. WHILE no injected provider is present and no account is connected, THE Arbitra_Frontend SHALL render every read-only screen in full.
+2. WHILE no injected provider is present, THE Arbitra_Frontend SHALL render each wallet-dependent control either absent or marked unavailable with a stated reason, and SHALL render zero controls that throw or hang on activation.
+3. THE Arbitra_Frontend SHALL gate only contract write functionality on a connected wallet, and SHALL gate zero read-only functionality on a connected wallet.
+4. WHILE `NEXT_PUBLIC_API_BASE` is unset, THE Arbitra_Frontend SHALL continue to serve every read-only screen from the Mock_API in the deployed fixture build.
+
+## Change Note
+
+Requirements 19 and 20 were promoted from optional to core and swapped in subject: Requirement 19 now covers wallet connection and Requirement 20 covers deal origination and deliverable submission, with their numbers held fixed so existing task references stay valid. Requirement 12 was retargeted from Sepolia to Arc Testnet at chain ID 5042002 with USDC as the native gas token, the explorer host is now carried only in `NEXT_PUBLIC_EXPLORER_TX_BASE` with no default, and the copy gate in Requirement 13 no longer bans Arc as a network name. Requirement 21 was added to hold the read-only screens' independence from any wallet.
+
+Requirement 14 was retargeted from a restrained paper-and-ink court-record aesthetic to a dark dashboard aesthetic following a supplied visual reference, replacing its former prohibitions on uniform-shadow cards, gradient washes, tracked-out capital labels, and arrow glyphs with bounded permissions. Six rules were deliberately carried over: the rule-token system whose borders encode which fields sit inside the hashed verdict preimage, the restriction of monospace to Machine_Identity_Data, the container-differentiation rule that keeps each content kind structurally distinct, the boldness budget spent on the verdict record, the labeled-metadata-pair rule that replaces middle-dot metadata strings, and the no-fabricated-figures rule now stated as Requirement 14 criterion 14. Requirement 15 gained criterion 7 requiring documented contrast ratios for every token pairing, because the former measured values were computed against a light palette that no longer exists; the WCAG AA thresholds in criterion 5 are unchanged. The reference's chain is Hedera and is explicitly NOT adopted: the chain remains Arc_Testnet at chain ID 5042002 with USDC as native gas per Requirement 12, and the reference's figures, agent names, and escrow identifier scheme are not adopted either. Only visual language was taken from the reference.
