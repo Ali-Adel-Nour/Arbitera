@@ -100,8 +100,16 @@ export type RawVerdict = Omit<
  * Requirement 5.1's reasoning applied to the prompt: this workspace does not
  * import from the backend workspace. A fixture is a snapshot of what that module
  * produced, and it stays a snapshot even if the real prompt is reworded.
+ *
+ * Exported because `app/api/judge/route.ts` builds its prompt exhibit with it
+ * too. One spelling of the prompt shape, so a record produced by the mock judge
+ * and a record sealed here present the same exhibit to a reader.
  */
-function judgePrompt(task: string, acceptanceCriteria: string[], deliverable: string): string {
+export function judgePrompt(
+  task: string,
+  acceptanceCriteria: string[],
+  deliverable: string,
+): string {
   return `You are the independent fulfillment judge for Arbitra.
 
 Your job is to evaluate whether a seller's deliverable satisfies the buyer's original task and acceptance criteria.
@@ -143,8 +151,11 @@ Return exactly one JSON object, with no Markdown fences or explanatory text. The
  * one from the other is how they stay that way — a reviewer comparing the two
  * exhibits is checking exactly that correspondence, and two hand-written copies
  * would eventually disagree and read as evidence of something.
+ *
+ * Exported for the same reason as `judgePrompt` above: the mock judge route
+ * builds its `rawResponse` with it, so both exhibits keep one shape.
  */
-const modelResponse = (approved: boolean, reasoning: string): string =>
+export const modelResponse = (approved: boolean, reasoning: string): string =>
   `${JSON.stringify({ approved, verdict: approved ? 'PASS' : 'FAIL', reasoning }, null, 2)}\n`;
 
 /* ===========================================================================
@@ -278,7 +289,8 @@ const sealVerdictHash = (record: Omit<AuditableVerdict, 'verdictHash'>): Hex32 =
   computeVerdictHash({ ...record, verdictHash: UNSEALED });
 
 /**
- * THE RECORDS, SEALED AT MODULE LOAD.  (Requirements 4.5, 5.4, 5.8)
+ * A record's material with its five computed fields filled in.
+ * (Requirements 4.5, 5.4, 5.8)
  *
  * Same material in, same hashes out, on every process and every serverless
  * instance — nothing here reads a clock or an environment.
@@ -292,8 +304,13 @@ const sealVerdictHash = (record: Omit<AuditableVerdict, 'verdictHash'>): Hex32 =
  *
  * Frozen, because these objects are shared by every route handler and a handler
  * that added a field on its way out would mutate what the next request reads.
+ *
+ * Exported so `app/api/judge/route.ts` seals the record it returns through the
+ * same code path the two fixtures below were sealed through. A second sealing
+ * implementation would be a second answer to "what does this record hash to",
+ * and the verify panel would report the difference as tampering.
  */
-export const VERDICT_RECORDS: AuditableVerdict[] = RAW_RECORDS.map((raw) => {
+export function sealRecord(raw: RawVerdict): AuditableVerdict {
   const record = {
     ...raw,
     score: raw.approved ? 100 : 0,
@@ -303,7 +320,10 @@ export const VERDICT_RECORDS: AuditableVerdict[] = RAW_RECORDS.map((raw) => {
   };
 
   return Object.freeze({ ...record, verdictHash: sealVerdictHash(record) });
-});
+}
+
+/** THE RECORDS, SEALED AT MODULE LOAD. See `sealRecord`. */
+export const VERDICT_RECORDS: AuditableVerdict[] = RAW_RECORDS.map((raw) => sealRecord(raw));
 
 /** The approved record. Named so `timelines.ts` and the reputation fixtures can say which. */
 export const ALPHA_RECORD: AuditableVerdict = VERDICT_RECORDS[0];

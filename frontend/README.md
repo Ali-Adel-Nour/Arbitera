@@ -42,6 +42,57 @@ Note the two decimals values in `src/lib/chain.ts` and do not merge them: the
 18 on `nativeCurrency` exists solely because wallet registration validates that
 field at 18, while `USDC_DECIMALS` is 6 and is what every escrow amount uses.
 
+## The bundled mock API
+
+With `NEXT_PUBLIC_API_BASE` unset, every request resolves relative to this
+deployment and lands on the route handlers under `src/app/api/`. They read the
+fixtures in `src/fixtures/` directly and make no outbound request, so every
+screen works with no backend, no model provider, and no key configured.
+
+| Route | Serves |
+| --- | --- |
+| `GET /api/deals` | Every fixture deal at the current instant, plus the server's `asOf` |
+| `GET /api/deals/:dealId` | One deal, including the three commitments the chain holds |
+| `GET /api/verify/:dealId` | The canonical preimage record, byte-exact as stored, for recomputation in the browser |
+| `GET /api/judgments/:dealId` | The stored record plus the backend's own `verified` flag |
+| `GET /api/reputation/:agent` | The reputation record. Either identifier form resolves; an unknown agent gets a zero-filled summary rather than a 404 |
+| `GET /api/agents` | The agent index the trust explorer lists |
+| `GET /api/mcp-activity` | The reputation-query log, newest first |
+| `POST /api/judge` | A fixture verdict for a submitted deliverable. No model is called and every record says so in its reasoning |
+
+Deal state advances with wall-clock time on a 48-second cycle, so two calls to
+`/api/deals` a few seconds apart can return different state groupings. Every
+handler is `force-dynamic`: a statically rendered one would serve the instant the
+build ran, forever.
+
+### Reaching the tampered record
+
+One fixture record has a deliberately corrupted stored hash, so a mismatch can be
+demonstrated rather than described. It is the refunded fixture deal — the one
+whose seller is `agent-b` — and because it is that record after a corruption, it
+carries the same `dealId`. One path cannot serve both, so the corrupted variant
+answers on `?tampered=1`:
+
+```sh
+BASE=http://localhost:3000
+DEAL=$(curl -s "$BASE/api/deals" | grep -o '"dealId":"0x[0-9a-f]*"' | sed -n 2p | cut -d'"' -f4)
+
+curl -s "$BASE/api/verify/$DEAL"              # intact:    verified true
+curl -s "$BASE/api/verify/$DEAL?tampered=1"   # corrupted: verified false
+```
+
+Only that one record has a corrupted variant. `?tampered=1` on any other deal
+answers 404 rather than the intact record, so a clean three-way match can never
+be mistaken for the corrupted case. The intact path never reads the corrupted
+record at all, so nothing a caller sends can make an untouched record look
+tampered with.
+
+The corruption is applied to the STORED verdict hash only. The on-chain
+commitment is left correct, so the browser's recomputation and the contract agree
+with each other and the backend's row is the one standing apart — which is the
+finding the trust model predicts, since backend persistence is the layer that can
+quietly rewrite a row and the chain is not.
+
 ## Version pinning
 
 Every dependency is pinned to an exact version, not a caret range, so that a
