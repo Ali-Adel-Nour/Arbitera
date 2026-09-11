@@ -27,7 +27,16 @@
  * matches its own hash. It does not prove what the model received, and it does
  * not prove the evaluation was honest. Every sentence below stays inside that
  * line, and so should every sentence added after it.
+ *
+ * ONE IMPORT, AND IT IS TYPES ONLY
+ * --------------------------------
+ * `ContractErrorName` is imported so the contract-error table can be checked
+ * total over the ten errors the escrow contract declares. It is a type-only
+ * import: this module stays a module of sentences, with no runtime dependency on
+ * anything, and nothing here can start reaching for data.
  */
+
+import type { ContractErrorName } from '@/types';
 
 /* ===========================================================================
  * The application itself
@@ -114,6 +123,31 @@ export const HOME = {
 } as const;
 
 /* ===========================================================================
+ * The refund-availability sentence (Requirement 16.6)
+ *
+ * ONE SENTENCE, THREE PLACES. It is standing copy on the deal record and the
+ * docket, and it is also the refund clause in the trust-model's list of what the
+ * contract enforces. Declared here, above `TRUST_MODEL`, so that list can
+ * interpolate it rather than restate it: a reader who meets the sentence twice
+ * should meet the same sentence, and two hand-maintained copies of a
+ * requirement-mandated line is how that stops being true.
+ *
+ * Both cases are named because a reader who knows only the first will read the
+ * second as a bug. The seller missing the deadline is the obvious one; the
+ * oracle failing to resolve a deal that WAS delivered on time is the one that
+ * looks like the protocol losing track of a deal, and it is the case the
+ * contract's grace period exists for.
+ *
+ * The two contract errors that guard those cases — `DeadlineNotPassed` and
+ * `OracleGracePeriodNotPassed` — close with the same clause, so the error a
+ * reviewer hits early agrees with the standing copy rather than reading as a
+ * different rule.
+ * ======================================================================== */
+
+export const REFUND_AVAILABILITY =
+  'A buyer refund becomes available in two cases: the seller misses the deadline without submitting, or the oracle does not resolve the deal within its grace period after submission.';
+
+/* ===========================================================================
  * `/trust-model` — the boundary statement
  *
  * A route rather than a modal, because this is the claim the rest of the
@@ -131,7 +165,7 @@ export const TRUST_MODEL = {
     'Custody. Escrowed tokens sit in the contract. No off-chain component can move them.',
     'Two outcomes. Funds are released to the seller or returned to the buyer. There is no third destination.',
     'Authority to resolve. Only the oracle address registered with the contract can resolve a deal.',
-    'Refund conditions. A buyer refund becomes available in two cases: the seller misses the deadline without submitting, or the oracle does not resolve the deal within its grace period after submission.',
+    `Refund conditions. ${REFUND_AVAILABILITY}`,
     'A committed hash. Resolving a deal writes the verdict reasoning hash into contract storage, where it cannot be revised afterwards.',
   ],
 
@@ -191,3 +225,271 @@ export const VERIFY_COMPARISON = {
       'All three sources disagree with each other. No two of the recomputed, stored, and committed values are equal.',
   },
 } as const;
+
+/* ===========================================================================
+ * Failures — cause and recovery (Requirements 16.3, 16.4, 16.7, 11.6)
+ *
+ * Every failed request produces two sentences, never one: what broke, and what
+ * the reader can do about it. `lib/errorCopy.ts` is the typed mapping from the
+ * `ApiError` union onto this table, and that split is the point — the union is
+ * closed and the mapping's return type is not optional, so a new error kind
+ * without an entry here is a compile error rather than an empty panel in front
+ * of a reviewer.
+ *
+ * THE RECOVERY LINE IS NOT DECORATION. Each one is either an action the reader
+ * can actually take, or a plain statement that there is none. A recovery that
+ * says "please try again" on a failure a retry cannot fix wastes the reader's
+ * time and teaches them to stop reading the panel. Two lines here are worth
+ * reading twice for that reason:
+ *
+ *   - The 500 line ends by saying the interface cannot see the backend's logs.
+ *     That sentence exists to send a reviewer away from the browser devtools,
+ *     which is where they will otherwise spend ten minutes.
+ *   - The 502 line says the failure is upstream of the interface AND upstream of
+ *     the backend, so nobody debugs either.
+ *
+ * INTERPOLATION, AND WHY SOME ENTRIES ARE FUNCTIONS. A sentence that names a
+ * value the interface only learns at runtime — an identifier, a configured
+ * origin, a guard's name — is written here as a template function rather than
+ * assembled from fragments at the call site. The whole sentence stays in this
+ * file, which is what keeps the copy gate exact and what lets a reviewer read
+ * the interface's voice in one place.
+ *
+ * ONE ENVIRONMENT VARIABLE IS DELIBERATELY NOT NAMED HERE. The 401 recovery
+ * interpolates the variable name from the error itself. The copy gate permits
+ * that name to appear in exactly one module under `src/`, and that module is the
+ * one that reads it; spending the budget on a copy string would leave the real
+ * reader unable to name what it reads. `types.ts` carries the same note on the
+ * `unauthorized` member.
+ * ======================================================================== */
+
+export const API_ERROR_COPY = {
+  /**
+   * `fetch` threw — the configured origin did not answer at all.
+   *
+   * `base` is blank when nothing is configured and the deployment is serving its
+   * own mock routes same-origin. There is no host to name in that case, so the
+   * sentence names the deployment instead of rendering a gap where a URL should
+   * be.
+   */
+  network: {
+    cause: (base: string) =>
+      base === ''
+        ? 'This deployment did not answer its own request.'
+        : `The backend at ${base} did not answer.`,
+    recovery:
+      'Check that NEXT_PUBLIC_API_BASE points at a running backend, or unset it to read fixture data from this deployment.',
+  },
+
+  /**
+   * 400. THE CAUSE IS THE BACKEND'S OWN TEXT, VERBATIM — it knows what it
+   * rejected, and paraphrasing it here would put this file between the reader
+   * and the only party that has the answer. The fallback below is used only when
+   * the response carried no text at all.
+   */
+  badRequest: {
+    causeFallback: 'The backend rejected this request and returned no explanation.',
+    /** The backend named the offending input, so the recovery names it too. */
+    recoveryWithField: (field: string) => `Correct the ${field} and send it again.`,
+    /** It did not, so the message above is the only pointer available. */
+    recovery: 'Correct the input named in the message above and send it again.',
+  },
+
+  /**
+   * 401 from a settlement-capable route. Worth stating that nothing settled: the
+   * judge may well have run, and a reviewer who reads this as a total failure
+   * will look for a verdict that does in fact exist.
+   */
+  unauthorized: {
+    cause: 'This deployment has no settlement authorization, so nothing was settled.',
+    recovery: (envVar: string) => `Set ${envVar} on the server and redeploy.`,
+  },
+
+  /**
+   * 404, per resource. Which lookup failed is the useful half of the message;
+   * "not found" alone leaves a reader guessing whether the deal, the judgment,
+   * or the agent is the missing one.
+   *
+   * ONE RECOVERY COVERS FOUR CAUSES, and it is the same in each case for a real
+   * reason rather than for brevity: every one of these records comes into
+   * existence either because an identifier was right or because the oracle has
+   * resolved a deal. A reputation record is no exception — an agent has no
+   * record until one of its deals is resolved.
+   */
+  notFound: {
+    cause: {
+      deal: (id: string) => `No deal is recorded under ${id}.`,
+      judgment: (id: string) => `No judgment record exists for deal ${id}.`,
+      /**
+       * The one sentence that does not name the identifier, and it takes the
+       * parameter anyway so all four share a signature. A preimage lookup only
+       * happens from a deal's own screen, where "this deal" is unambiguous and
+       * repeating the identifier back at the reader adds a hash to a sentence
+       * for no gain.
+       */
+      preimage: (_id: string) => 'The canonical preimage for this deal is not on record.',
+      agent: (id: string) => `No reputation record exists for ${id}.`,
+    },
+    recovery: 'Check the identifier, or wait for the oracle to resolve this deal.',
+  },
+
+  /** 500. The one recovery that tells the reader to stop looking at the browser. */
+  server: {
+    cause: 'The backend failed while handling this request.',
+    recovery:
+      'Retry. If it persists, the backend logs will name the failure; the interface cannot see them.',
+  },
+
+  /** 502. Two layers away, and the recovery says so rather than implying a fix. */
+  upstream: {
+    cause:
+      'The backend reached its upstream — the model provider or an RPC node — and got an error back.',
+    recovery: 'Retry. This is upstream of the interface and upstream of the backend.',
+  },
+
+  /**
+   * 503. Up, but not ready. A retry genuinely does help here, which is why this
+   * is the one recovery that asks for one without qualification.
+   */
+  unavailable: {
+    cause: 'The backend is up but not ready to serve this request.',
+    /** `delay` is a phrase, not a number — one of the two below. */
+    recovery: (delay: string) => `Retry in ${delay}. Polling continues automatically.`,
+    /** No retry delay was supplied, so no figure is invented. */
+    unspecifiedDelay: 'a few seconds',
+    /** One was. Whole seconds, pluralised. */
+    seconds: (whole: number) => (whole === 1 ? '1 second' : `${whole} seconds`),
+  },
+
+  /**
+   * The response arrived, parsed, and failed its shape guard. `expected` is the
+   * guard's name, so the sentence names the shape that was wanted instead of
+   * reporting a generic parse failure.
+   *
+   * The recovery is the blunt one, and it should stay blunt. A drifted field name
+   * is a contract change, not a transient fault, and no amount of retrying moves
+   * it. Naming the file that settles the disagreement is the whole of the action.
+   */
+  malformed: {
+    cause: (expected: string) =>
+      `The backend answered, but the response did not match the shape ${expected}.`,
+    recovery: 'The backend and types.ts have drifted. types.ts is the contract.',
+  },
+} as const;
+
+/* ===========================================================================
+ * Contract errors (Requirement 16.5)
+ *
+ * The escrow contract signals failure with ten parameterless custom errors.
+ * Relayed to the interface when a settlement attempt reverts, each one arrives
+ * as nothing but a name.
+ *
+ * TEN DISTINCT MESSAGES, AND NONE OF THEM RESTATES ITS OWN NAME. A panel reading
+ * "InvalidState" tells a reader precisely what they already knew from the fact
+ * that something failed. So every message below names the ACTOR whose authority
+ * or turn it was, or the CONDITION that was not met — the two things a reader
+ * needs in order to know whether to wait, to fix an input, or to stop.
+ *
+ * The recovery halves divide cleanly into three groups, and the division is
+ * worth keeping visible when these are edited: an input to correct
+ * (`InvalidAddress`, `InvalidAmount`, `InvalidDuration`, `InvalidDealId`,
+ * `DealAlreadyExists`), a wait with a defined end (`DeadlineNotPassed`,
+ * `OracleGracePeriodNotPassed`), and nothing at all (`Unauthorized`,
+ * `InvalidState`, `DeadlinePassed`). The third group says so outright. Offering
+ * a retry there would be offering a reader a button that cannot work.
+ * ======================================================================== */
+
+export const CONTRACT_ERROR_COPY = {
+  Unauthorized: {
+    message:
+      'Only the registered oracle can resolve a deal. The address that signed this call is not that oracle.',
+    recovery:
+      'Nothing in this interface can settle a deal, and nothing it does can change that. Check which address the backend signs with, and whether the contract has that address registered as its oracle.',
+  },
+
+  InvalidAddress: {
+    message:
+      'An address in this call is the zero address or malformed. Buyer, seller, and token must all be non-zero addresses.',
+    recovery:
+      'Replace the empty or malformed address with a real one and send the deal again. All three are required, and none of them may be zero.',
+  },
+
+  InvalidAmount: {
+    message: 'The escrow amount must be greater than zero.',
+    recovery: 'Enter an amount above zero and send the deal again.',
+  },
+
+  InvalidDuration: {
+    message:
+      "The deadline is outside the range the contract accepts. It must be far enough in the future and within the contract's maximum term.",
+    recovery:
+      'Move the deadline further out if it was too close, or nearer if it exceeded the maximum term, and send the deal again.',
+  },
+
+  InvalidDealId: {
+    message: 'A deal identifier must be 32 bytes of non-zero hex.',
+    recovery:
+      'Derive the identifier as a hash rather than writing a name into the field, and send the deal again.',
+  },
+
+  DealAlreadyExists: {
+    message: 'A deal is already recorded under this identifier. Identifiers cannot be reused.',
+    recovery:
+      'Derive a fresh identifier for this deal. The recorded one belongs to the earlier deal and keeps it.',
+  },
+
+  /**
+   * The one message with a variable body. `lib/errorCopy.ts` fills the two state
+   * names when the backend relays them and uses `messageWithoutStates` when it
+   * does not, so an absent detail costs the reader the specifics rather than
+   * showing them a sentence with two gaps in it.
+   */
+  InvalidState: {
+    messageWithoutStates: "This action is not available from the deal's current state.",
+    message: (current: string, required: string) =>
+      `This action is not available from the deal's current state. The deal is ${current}; this action requires ${required}.`,
+    recovery:
+      'Open the deal record to see where it actually stands. The action becomes available when the deal reaches the state it needs, and only the buyer, the seller, or the oracle can move it there.',
+  },
+
+  DeadlinePassed: {
+    message:
+      'The deadline has passed, so the seller can no longer submit a deliverable. The buyer can now claim a refund.',
+    recovery:
+      'The submission window is closed and cannot be reopened. The buyer claiming a refund is the remaining path.',
+  },
+
+  DeadlineNotPassed: {
+    message: 'The deadline has not passed yet. A buyer refund becomes available once it does.',
+    recovery:
+      'Wait for the deadline. Until it passes the seller still holds the right to submit, and the contract will not release the funds either way.',
+  },
+
+  OracleGracePeriodNotPassed: {
+    message:
+      'The oracle still has time to resolve this deal. A buyer refund becomes available once the grace period ends.',
+    recovery:
+      'Wait for the oracle to resolve the deal, or for the grace period to run out. Nothing can shorten it, and the refund path opens by itself when it ends.',
+  },
+
+  /**
+   * `satisfies` rather than a type annotation, and the difference is the whole
+   * reason it is written this way: the annotation would check totality and then
+   * FLATTEN the table, collapsing `InvalidState.message` from a two-argument
+   * template into `string` and the other nine into the same. `satisfies` checks
+   * that all ten names are present with a recovery each, and leaves every literal
+   * and every signature intact for `lib/errorCopy.ts` to read.
+   *
+   * A name added to `ContractErrorName` without copy fails here, at the table,
+   * rather than at the one call site that happened to index it.
+   *
+   * The index signature is what lets each entry keep its own message shape.
+   * `satisfies` applies excess-property checking, so without it the nine plain
+   * `message` strings and `InvalidState`'s two variants would each be reported as
+   * an unknown property. What is being asserted is "ten names, each with a
+   * recovery", and the index signature says exactly that and no more.
+   */
+} as const satisfies Record<
+  ContractErrorName,
+  { readonly recovery: string; readonly [detail: string]: unknown }
+>;
