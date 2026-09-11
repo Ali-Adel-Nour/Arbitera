@@ -701,4 +701,99 @@ export const DEAL = {
   settlementPending:
     'This deal has not been settled on chain yet, so there is no transaction to reference.',
 
+  /**
+   * The handoff to the verify panel. Worded as an invitation to do the work
+   * locally, because that is the distinction the next screen rests on: the record
+   * screen shows the commitments, the verify screen recomputes them in the
+   * reader's own browser.
+   */
+  verifyLinkLabel: 'Recompute these hashes in your browser',
+} as const;
+
+/* ===========================================================================
+ * `/deals/:dealId/verify` — the three-way comparison, as a screen
+ *
+ * `VERIFY_COMPARISON` above holds the disagreement sentences. This block holds
+ * everything else the screen says: the row labels, the source labels, the
+ * per-source outcome phrases, and the two conclusion statements.
+ *
+ * THE SOURCE LABELS ARE THE MOST CAREFULLY WORDED STRINGS ON THIS SCREEN. Each
+ * one has to make plain WHO produced the value, because the entire argument of the
+ * screen is that three independent parties agree. "Recomputed in this browser"
+ * rather than "computed" — the reader's own machine did it. "Committed on-chain"
+ * rather than "from the contract" — what is cited is the immutable value, not the
+ * code holding it.
+ *
+ * THE BACKEND'S FLAG GETS A LABEL THAT SAYS IT IS NOT USED. Requirement 8.7 keeps
+ * it out of the conclusion in code; this copy keeps it out of the conclusion in
+ * the reader's mind, which matters just as much when a reviewer is deciding
+ * whether to believe the screen.
+ * ======================================================================== */
+
+export const VERIFY = {
+  heading: 'Recompute the hashes',
+
+  lede: 'Three parties committed to this record: the backend that stored it, the contract that settled it, and — right now, in your browser — you. Every hash below is recomputed locally from the record’s own bytes and compared against both stored values.',
+
+  loading: 'Requesting the record and the deal.',
+
+  /** No stored record. Common, and not a failure. */
+  noRecord:
+    'No judge record has been stored for this deal, so there is nothing to recompute yet. A comparison appears here once a verdict has been recorded.',
+
+  /** Row group headings, naming the chain-side field where it differs. */
+  rows: {
+    rubric: {
+      label: 'Acceptance criteria',
+      note: 'Recomputed from the criteria themselves. The backend stores this as rubricHash; the contract commits to it as criteriaHash. Two names, one commitment.',
+    },
+    deliverable: {
+      label: 'Deliverable',
+      note: 'Recomputed from the submitted work. Named deliverableHash by both the record and the contract.',
+    },
+    verdict: {
+      label: 'Verdict',
+      note: 'Recomputed from the seventeen-field preimage, which excludes the timestamp — that exclusion is what makes the digest reproducible. The backend stores it as verdictHash; the contract commits to it as verdictReasoningHash.',
+    },
+  },
+
+  /** Who produced each value. See the note above on the wording. */
+  sources: {
+    recomputed: 'Recomputed in this browser',
+    stored: 'Stored by the backend',
+    onChain: 'Committed on-chain',
+  },
+
+  /** Per-row outcome phrases, paired with the agreement each row reports. */
+  outcomes: {
+    agrees: 'Agrees with the other sources',
+    differs: 'Stands apart from the other sources',
+    notCompared: 'Not compared — nothing committed on-chain yet',
+    notCommitted: 'Not committed on-chain yet',
+  },
+
+  conclusionHeading: 'Conclusion',
+
+  /** The two conclusions. There is no third, and no "unknown". */
+  tamperEvident:
+    'Tamper-evident. Every hash you recomputed here matches what the backend stored and what the chain committed, so the bytes you were shown are the bytes that were committed.',
+  mismatch:
+    'Mismatch. At least one value that exists disagrees with the others. The row notes above name which source stands apart, which is the layer to go and look at.',
+
+  /**
+   * The scope sentence, which travels with every match. Agreement is about the
+   * record, not about the judging, and this is where that is said out loud.
+   */
+  conclusionScope:
+    'This is a statement about the record, not about the reasoning inside it. It does not prove what the model received, and it does not prove the evaluation was sound. A judgment can be recorded faithfully and still be wrong.',
+
+  /** The backend's own flag, displayed and explicitly not used. */
+  backendFlagHeading: 'The backend’s own assessment',
+  backendFlagNote:
+    'Shown because it is part of the response, and read by nothing that produces the conclusion above. The value of recomputing in your browser disappears if the answer comes from the party being checked.',
+  backendFlagTrue: 'The backend reports this record as verified.',
+  backendFlagFalse: 'The backend reports this record as not verified.',
+  backendFlagAbsent: 'The response carried no assessment. That is different from reporting false.',
+
+  recordLinkLabel: 'Back to the verdict record',
 } as const;

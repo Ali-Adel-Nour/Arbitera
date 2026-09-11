@@ -281,12 +281,17 @@ export function VerdictRecord({ dealId }: { dealId: string }) {
             </Term>
           </dl>
 
-          {/* The link to the verify panel lands with that panel, in the next
-              commit. An anchor to a route whose `page.tsx` does not exist yet is
-              a 404 shipped on purpose, and `lib/settlementLink.ts` spends a whole
-              module arguing against exactly that for the settlement reference —
-              the argument does not get weaker because the dead link would be
-              internal. */}
+          {/* The handoff. This screen displays the commitments; it does not
+              compare them, which is why it never says "verified". The comparison
+              is one route away and the reader is told where. */}
+          <p className="text-body px-4 py-4 md:px-5">
+            <Link
+              href={`/deals/${encodeURIComponent(deal.dealId)}/verify`}
+              className={`text-accent-text underline decoration-1 underline-offset-4 ${FOCUS}`}
+            >
+              {DEAL.verifyLinkLabel}
+            </Link>
+          </p>
         </Panel>
       )}
 
