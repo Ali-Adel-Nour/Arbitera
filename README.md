@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Payment: Circle USDC](https://img.shields.io/badge/Payment-Circle%20USDC-2775CA)](https://circle.com)
-[![Indexing: Graph-ready](https://img.shields.io/badge/Indexing-The%20Graph%20ready-6f4cff)](https://thegraph.com)
+[![Indexing: The Graph](https://img.shields.io/badge/Indexing-The%20Graph%20Live-6f4cff)](https://thegraph.com)
 [![Standard: Model Context Protocol](https://img.shields.io/badge/Standard-MCP-green)](https://modelcontextprotocol.io)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.34-363636?logo=solidity&logoColor=white)](https://soliditylang.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ES2023-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -13,7 +13,7 @@
 
 Arbitra is a **trust-minimized, auditable AI escrow and arbitration protocol** for autonomous agents. Agent A queries Agent B's reputation through MCP, decides whether to hire, funds an ERC-20/USDC-compatible escrow, and gets a deterministic AI Judge verdict before the authorized oracle releases payment or refunds the buyer.
 
-> **MVP truth:** off-chain AI Judge reputation and audit records come from Prisma. The included subgraph indexes on-chain escrow facts for Graph-enabled deployments, but this repository does **not** claim a production subgraph deployment.
+> **The Graph integration:** The MCP server queries **15,000+ live subgraphs** on The Graph Network via Subgraph Studio to power AI-driven risk assessments, verdict cross-verification, and market intelligence. The included subgraph indexes on-chain escrow lifecycle events for Arbitra-specific data.
 
 ---
 
@@ -202,6 +202,18 @@ Agent A refuses agent-b and hires agent-c based on returned data.
 
 The demo seeds its explicitly marked fixture records into Prisma, queries the real backend endpoint through the MCP server, calculates the decision from the returned reputation, and verifies a completed audit record through the MCP audit tool. Production records use Prisma as the primary source of truth.
 
+### 🌐 Arc Testnet Integration 
+
+Arbitra's smart contracts are deployed and fully functional on the **Arc Testnet**. 
+
+To run the end-to-end Arc Testnet escrow flow (creating a deal, funding it with USDC, submitting a deliverable, and having the AI Oracle settle it on-chain):
+
+```powershell
+npx tsx backend/scripts/arc-testnet-demo.ts
+```
+
+This script interacts directly with our deployed `ArbiterEscrow` contract (`0x6250ce00A5A9170fB6dB23f111bE0D3d9D5A30F2`) and Arc's native USDC on the Arc Testnet.
+
 ## 🏗️ Architecture
 
 | Layer | Current implementation | Role |
@@ -211,17 +223,81 @@ The demo seeds its explicitly marked fixture records into Prisma, queries the re
 | Persistence | Prisma + SQLite persisted deal and canonical audit record | Keeps reputation and audit verification on one source of truth |
 | Oracle integration | Ethers + authorized wallet | Submits `verdictHash` through `resolveEscrow` |
 | Reputation API | Node HTTP server | Aggregates success, failure, recency, category, and history |
-| Agent interface | MCP stdio server | Gives agents structured reputation before hiring |
-| Indexing | `subgraph/` event schema and mappings | Indexes escrow lifecycle facts; deployment remains operator-configured |
+| Agent interface | MCP stdio server (8 tools) | Gives agents structured reputation, risk assessment, and market intelligence |
+| Graph Intelligence | Subgraph Studio Gateway + LLM | Queries 15K+ live subgraphs for DeFi data, synthesizes AI risk reports |
+| Indexing | `subgraph/` event schema and mappings | Indexes escrow lifecycle facts on-chain |
+
+## 🌐 The Graph AI Integration
+
+Arbitra uses **The Graph** as a live, load-bearing data source for AI-powered decision-making. The MCP server connects to The Graph's decentralized network via Subgraph Studio to query DeFi activity across Uniswap, Aave, Compound, and 15,000+ other subgraphs.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Agent (Claude/Cursor)                  │
+│         "Should I hire this seller for 500 USDC?"           │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ MCP Protocol
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│               Arbitra MCP Server (8 tools)                   │
+│  ┌──────────────────┐  ┌──────────────────────────────┐     │
+│  │ Core Tools        │  │ Graph AI Tools                │     │
+│  │ • reputation      │  │ • assess_seller_risk          │     │
+│  │ • verify_verdict  │  │ • verify_verdict_onchain      │     │
+│  │ • get_deal        │  │ • escrow_market_insights      │     │
+│  └────────┬─────────┘  │ • search_defi_subgraphs       │     │
+│           │             │ • query_wallet_activity       │     │
+│           │             └────────┬──────────┬───────────┘     │
+│           ▼                      ▼          ▼                 │
+│  ┌────────────────┐  ┌─────────────┐  ┌──────────────┐      │
+│  │ Arbitra Backend │  │  Subgraph   │  │ LLM (Gemini) │      │
+│  │ (Prisma/SQLite) │  │  Studio API │  │ AI Reasoning │      │
+│  └────────────────┘  └──────┬──────┘  └──────────────┘      │
+└──────────────────────────────┼───────────────────────────────┘
+                               │ Live GraphQL
+                               ▼
+              ┌─────────────────────────────────┐
+              │    The Graph Decentralized       │
+              │    Network (15,000+ Subgraphs)   │
+              │  ┌───────┐ ┌──────┐ ┌─────────┐ │
+              │  │Uniswap│ │ Aave │ │Compound │ │
+              │  └───────┘ └──────┘ └─────────┘ │
+              └─────────────────────────────────┘
+```
+
+### MCP Tools
+
+| Tool | Category | Description |
+|---|---|---|
+| `get_agent_reputation` | Core | Query seller reliability from Arbitra's reputation index |
+| `verify_deal_verdict` | Core | Fetch and verify a persisted deal verdict hash |
+| `get_indexed_deal` | Core | Query an escrow lifecycle record with Graph fallback |
+| `assess_seller_risk` | **Graph AI** | AI risk report combining DeFi activity (Uniswap, Aave) + escrow history + LLM reasoning |
+| `verify_verdict_onchain` | **Graph AI** | Cross-check AI Judge verdict vs on-chain state from The Graph |
+| `escrow_market_insights` | **Graph AI** | Natural-language market analysis aggregating multi-subgraph data |
+| `search_defi_subgraphs` | **Graph AI** | Search 15,000+ subgraphs on The Graph Network by keyword |
+| `query_wallet_activity` | **Graph AI** | Analyze a wallet's DeFi footprint across The Graph Network |
+
+### Setup for The Graph
+
+1. Create a free account at [thegraph.com/studio](https://thegraph.com/studio/)
+2. Generate a **Gateway API key** (this queries the decentralized network)
+3. Copy `mcp-server/.env.example` to `mcp-server/.env` and set:
+   ```env
+   GRAPH_API_KEY=your-gateway-api-key
+   LLM_API_KEY=your-gemini-or-openai-key
+   ```
+4. Start the MCP server: `npm run dev --workspace=@arbiter/mcp-server`
 
 ## 🧰 Tech Stack
 
 - **Solidity 0.8.34** and **Hardhat 3** for the escrow contract and tests.
 - **TypeScript / Node.js 22+** for the backend, oracle, MCP server, and demo.
 - **Ethers v6** for RPC, wallet, hashing, and contract settlement.
-- **Model Context Protocol** for agent-facing reputation queries.
+- **Model Context Protocol** for agent-facing reputation queries and Graph AI tools.
+- **The Graph** — live Subgraph Studio Gateway for querying 15,000+ subgraphs; `subgraph/` indexes `EscrowCreated`, `DeliverableSubmitted`, `EscrowResolved`, and `EscrowRefunded`.
+- **Gemini / OpenAI-compatible LLM** for AI reasoning over Graph data (risk assessments, market intelligence).
 - **ERC-20 / USDC-compatible tokens** for escrow payments; local tests include MockUSDC and a fee-on-transfer token.
-- **The Graph integration:** `subgraph/` indexes `EscrowCreated`, `DeliverableSubmitted`, `EscrowResolved`, and `EscrowRefunded`; no deployed production endpoint is included.
 
 
 #  Frontend
@@ -348,7 +424,7 @@ npm.cmd run dev:backend
 npm.cmd run dev:mcp
 ```
 
-Copy [`backend/.env.example`](backend/.env.example) to your local environment and configure the LLM and escrow variables. For MCP, copy [`mcp-server/.env.example`](mcp-server/.env.example); set `GRAPH_ENDPOINT` only when a compatible subgraph is deployed. Never commit API keys or private keys.
+Copy [`backend/.env.example`](backend/.env.example) to your local environment and configure the LLM and escrow variables. For MCP, copy [`mcp-server/.env.example`](mcp-server/.env.example) and set `GRAPH_API_KEY` with your Subgraph Studio Gateway key to enable the Graph AI tools. Never commit API keys or private keys.
 
 ## ✅ Verification
 
