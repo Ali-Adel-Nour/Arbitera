@@ -27,8 +27,20 @@ rather than a bare `next build` that a later commit has to remember to wrap.
 | --- | --- | --- |
 | `NEXT_PUBLIC_API_BASE` | no | Requests resolve relative to this deployment, so the bundled fixture route handlers serve every screen |
 | `NEXT_PUBLIC_ESCROW_ADDRESS` | no | Settlement references render as copyable hashes with a note that the contract is not deployed, instead of explorer links |
-| `NEXT_PUBLIC_EXPLORER_TX_BASE` | no | Defaults to `https://sepolia.etherscan.io/tx/` |
+| `NEXT_PUBLIC_EXPLORER_TX_BASE` | no | No explorer host is assumed. Settlement references render as copyable hashes, and the wallet add-chain payload omits `blockExplorerUrls` rather than registering a guessed host permanently |
+| `NEXT_PUBLIC_ARC_RPC_URL` | no | The wallet add-chain payload carries no RPC endpoint, so a wallet that does not already know the chain cannot be asked to add it |
 | `ARBITRA_INTERNAL_KEY` | no | Server-only. Sandbox settlement requests return 401 without it. Never `NEXT_PUBLIC_`-prefixed |
+
+There is no default for either host in the two rows above. The RPC and explorer
+hosts for the target chain are not confirmed, and `src/lib/chain.ts` is written
+to contribute nothing to the wallet payload rather than a guess. That module is
+also the only place the chain id appears, in both its decimal and hexadecimal
+form; copy that names the network interpolates the constant.
+
+Gas on the target chain is denominated in USDC as the native token, not ETH.
+Note the two decimals values in `src/lib/chain.ts` and do not merge them: the
+18 on `nativeCurrency` exists solely because wallet registration validates that
+field at 18, while `USDC_DECIMALS` is 6 and is what every escrow amount uses.
 
 ## Version pinning
 
