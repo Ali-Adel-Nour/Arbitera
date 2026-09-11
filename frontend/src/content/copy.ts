@@ -153,3 +153,41 @@ export const TRUST_MODEL = {
   scope:
     'That is the whole of the guarantee, and it is worth being plain about the size of it. Hashes make the boundary inspectable. They do not extend it.',
 } as const;
+
+/* ===========================================================================
+ * The three-way hash comparison
+ *
+ * `lib/verify.ts` computes which of the three sources stands apart; these are
+ * the sentences that say so. They live here rather than inline in that module
+ * for the reason at the top of this file: a sentence a reviewer will read has to
+ * be findable, and the scanner has to be able to see all of them at once.
+ *
+ * Each sentence names ONE SOURCE as the odd one out and says what the other two
+ * did, because that is the diagnostically useful shape. "Two values disagree" is
+ * true of most mismatches and tells a reader nothing about where to look.
+ *
+ * Three words are used carefully here and should stay that way. "This browser"
+ * rather than "the client", because the point is that the reader's own machine
+ * did the arithmetic. "The chain" rather than "the contract", because what is
+ * being cited is the committed value, not the code that holds it. And a match is
+ * reported as tamper-evident, never as anything stronger: agreement shows the
+ * record matches its hash and says nothing about the judging.
+ * ======================================================================== */
+
+export const VERIFY_COMPARISON = {
+  /**
+   * Keyed by the disagreement kinds in `lib/verify.ts`. That module annotates
+   * this object as a total mapping over those kinds, so a kind added there
+   * without a sentence added here does not compile.
+   */
+  disagreeing: {
+    'stored-differs':
+      'The backend record disagrees with both this browser and the chain. This browser recomputed the same value the chain committed, and the stored value is the one that stands apart.',
+    'onchain-differs':
+      'The chain disagrees with both this browser and the backend record. The record matches its own recomputation, and the value committed on-chain is the one that stands apart.',
+    'recomputed-differs':
+      'This browser disagrees with both the backend record and the chain. The stored value and the committed value agree with each other, so the recomputation here is the one that stands apart.',
+    'all-differ':
+      'All three sources disagree with each other. No two of the recomputed, stored, and committed values are equal.',
+  },
+} as const;
