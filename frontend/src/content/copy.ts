@@ -106,6 +106,35 @@ export const FOOTER = {
 } as const;
 
 /* ===========================================================================
+ * Shared control copy
+ *
+ * Strings that belong to a PRIMITIVE rather than to a screen. They live here for
+ * the same reason every other string does — `check-copy.mjs` asserts that user
+ * facing text is not inlined in components — but they differ from the screen
+ * blocks above in that no single screen owns them.
+ *
+ * `copyPrefix` exists so a copy control's accessible name says WHAT it copies.
+ * A hash strip renders a dozen of these; twelve buttons all named "Copy" is a
+ * screen reader reading out a list with no way to tell the rows apart, so the
+ * prefix is combined with the caller's label at the call site.
+ * ======================================================================== */
+
+export const COPY = {
+  /** The idle label. Terse because it sits beside the value, not above it. */
+  copy: 'Copy',
+
+  /**
+   * The confirmation, which replaces the label in place for ~1.4s. In place
+   * rather than as a toast: the result of the action is already on screen, and a
+   * portal plus a timer for that is ceremony.
+   */
+  copied: 'Copied',
+
+  /** Combined with the caller's label for the accessible name. */
+  copyPrefix: 'Copy',
+} as const;
+
+/* ===========================================================================
  * `/` — interim home
  *
  * The docket replaces this body at task 13.3. Until then the page carries a
