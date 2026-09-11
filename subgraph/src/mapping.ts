@@ -11,7 +11,7 @@ function eventId(event: ethereum.Event, suffix: string): string {
   return event.transaction.hash.toHex() + ":" + event.logIndex.toString() + ":" + suffix;
 }
 
-function recordEvent(event: ethereum.Event, deal: Escrow, kind: string, hash: string | null = null, approved: boolean | null = null): void {
+function recordEvent(event: ethereum.Event, deal: Escrow, kind: string, hash: string | null = null, hasApproved: boolean = false, approved: boolean = false): void {
   const record = new EscrowEvent(eventId(event, kind));
   record.deal = deal.id;
   record.kind = kind;
@@ -19,7 +19,7 @@ function recordEvent(event: ethereum.Event, deal: Escrow, kind: string, hash: st
   record.blockNumber = event.block.number;
   record.timestamp = event.block.timestamp;
   if (hash !== null) record.hash = hash;
-  if (approved !== null) record.approved = approved;
+  if (hasApproved) record.approved = approved;
   record.save();
 }
 
@@ -63,7 +63,7 @@ export function handleEscrowResolved(event: EscrowResolved): void {
   deal.resolvedBlockNumber = event.block.number;
   deal.updatedAt = event.block.timestamp;
   deal.save();
-  recordEvent(event, deal, "RESOLVED", event.params.verdictReasoningHash, event.params.approved);
+  recordEvent(event, deal, "RESOLVED", event.params.verdictReasoningHash, true, event.params.approved);
 }
 
 export function handleEscrowRefunded(event: EscrowRefunded): void {
