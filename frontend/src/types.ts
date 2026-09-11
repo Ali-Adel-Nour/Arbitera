@@ -452,8 +452,15 @@ export interface AuditableVerdict {
  * whose value is `undefined` omitted entirely, arrays left in their given
  * order, strings escaped by `JSON.stringify` rules, non-finite numbers an
  * error rather than a silent `null`. Then keccak256 over the UTF-8 bytes.
+ *
+ * Declared as a type alias rather than an `interface` for one structural
+ * reason: TypeScript grants an implicit index signature to object type aliases
+ * and not to interfaces, so only this form is assignable to the canonicalizer's
+ * `Canonicalizable` parameter. As an interface, `computeVerdictHash` would need
+ * an `as unknown as` cast to hash its own preimage — a cast in the one module
+ * whose whole value is that it can be read and checked line by line.
  */
-export interface VerdictPreimage {
+export type VerdictPreimage = {
   acceptanceCriteria: string[];
   approved: boolean;
   /** Omitted from the canonical string when absent, not emitted as null. */
@@ -479,7 +486,7 @@ export interface VerdictPreimage {
   taskCategory?: string;
   /** Derived from `approved`. */
   verdict: VerdictOutcome;
-}
+};
 
 /**
  * The seventeen field names, at the type level. A test asserts that the key set
