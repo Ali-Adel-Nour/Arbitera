@@ -32,7 +32,7 @@
  * outside the fixtures, which is the mechanical half of the same rule.
  */
 
-import { Interface, parseUnits } from 'ethers';
+import { Interface, parseUnits, isAddress } from 'ethers';
 
 import { USDC_DECIMALS } from '@/lib/chain';
 import { env } from '@/lib/env';
@@ -175,6 +175,10 @@ export function buildCreateAndFund(args: {
 }): BuildResult<UnsignedCall> {
   const resolved = addresses();
   if (!resolved.ok) return resolved;
+
+  if (!isAddress(args.seller)) {
+    return { ok: false, unavailable: { reason: "Invalid seller address format." } };
+  }
 
   const { escrow, token } = resolved.value;
 
