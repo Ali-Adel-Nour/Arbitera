@@ -54,6 +54,19 @@ import { FIXTURE_DEALS, type FixtureDeal, type Step } from './timelines';
  */
 export const JUDGE_REQUEST_LEAD_MS = 2_000;
 
+/**
+ * The three states in which the contract has finished with a deal.
+ *
+ * A `Set` over the union rather than a chain of comparisons, and typed as
+ * `EscrowState` so a state that leaves the union stops compiling here rather than
+ * silently dropping out of the check.
+ */
+const TERMINAL_STATES: ReadonlySet<EscrowState> = new Set<EscrowState>([
+  'ResolvedSuccess',
+  'ResolvedRefund',
+  'ExpiredRefund',
+]);
+
 /** What the clock owns: the state, and the timestamp that derives `Deliberating`. */
 export interface TimedState {
   /** The on-chain state. Never `Deliberating`. */
@@ -102,5 +115,25 @@ export function stateOf(deal: FixtureDeal, nowMs: number = Date.now()): TimedSta
  * cannot write back into the shared fixture.
  */
 export function snapshotAt(nowMs: number = Date.now()): EscrowDeal[] {
-  return FIXTURE_DEALS.map((deal) => ({ ...deal.base, ...stateOf(deal, nowMs) }));
+  return FIXTURE_DEALS.map((deal) => {
+    const timed = stateOf(deal, nowMs);
+    const settled = { ...deal.base, ...timed };
+
+    // A SETTLEMENT HASH ONLY EXISTS ONCE THE DEAL SETTLED.
+    //
+    // The hash itself is a per-deal constant, so it lives in `base` — it does not
+    // vary with the clock. Its PRESENCE does. Before this, the two deals that
+    // eventually resolve carried the field through every phase of the cycle,
+    // including while they were `Funded` and `Submitted`, which contradicts
+    // `EscrowDeal.resolvedTransactionHash` ("present once the oracle has resolved
+    // the deal") and let a record screen offer a settlement reference for a
+    // settlement that had not happened.
+    //
+    // Deleting the key rather than setting it to `undefined`, for the same reason
+    // `stateOf` omits `judgeRequestedAt`: the shape guards accept an absent
+    // optional member and reject one holding `undefined`.
+    if (!TERMINAL_STATES.has(timed.state)) delete settled.resolvedTransactionHash;
+
+    return settled;
+  });
 }

@@ -213,8 +213,13 @@ export const FIXTURE_TOKEN_ADDRESS: Address = fixtureAddress('05dc', 'fixture-us
  * genuinely never submit carry `null` for both, so the nullable branch is still
  * exercised, and the looping cycle is disclosed in the docket's footer.
  *
- * `resolvedTransactionHash` is present on the two deals that reach a resolved
- * state and omitted on the two that do not, on the same reasoning.
+ * `resolvedTransactionHash` is declared on the two deals that reach a resolved
+ * state and omitted on the two that never do. It is declared HERE because the
+ * hash is a per-deal constant that does not vary with the clock — but its
+ * PRESENCE does, and `snapshotAt` strips it while the deal is pre-terminal. A
+ * deal carrying a settlement reference while it is still `Submitted` contradicts
+ * `EscrowDeal.resolvedTransactionHash` and would let a record screen offer a link
+ * to a settlement that has not happened.
  * ======================================================================== */
 
 /**

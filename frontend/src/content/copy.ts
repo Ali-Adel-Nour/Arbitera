@@ -613,3 +613,92 @@ export const CONTRACT_ERROR_COPY = {
   ContractErrorName,
   { readonly recovery: string; readonly [detail: string]: unknown }
 >;
+
+/* ===========================================================================
+ * `/deals/:dealId` — the verdict record
+ *
+ * The screen that has to be most careful about what it claims. It shows a judge's
+ * verdict alongside the hashes the chain holds, and the gap between "these hashes
+ * agree" and "this evaluation was sound" is where a reader can be misled by
+ * confident wording.
+ *
+ * So the vocabulary is fixed here and used nowhere else:
+ *
+ *   TAMPER-EVIDENT, never "verified". Agreement shows the stored record matches
+ *   its own hash. It does not show what the model received, and it does not show
+ *   the evaluation was honest.
+ *
+ *   The exhibit notes state which fields the digest commits to and which it
+ *   omits, because the `rule/hashed` and `rule/excluded` borders say the same
+ *   thing without words and a reader meeting the vocabulary for the first time
+ *   needs it spelled out once.
+ * ======================================================================== */
+
+export const DEAL = {
+  /** Above the record. The identifier follows as a machine value. */
+  heading: 'Verdict record',
+
+  /** Shown while the first request is outstanding. */
+  loading: 'Requesting the record.',
+
+  /**
+   * The unresolved case, which is the common one on a live docket. Not an error:
+   * a funded deal has no verdict yet, and saying so is the correct answer.
+   */
+  noJudgment:
+    'No verdict has been recorded for this deal yet. A record appears here once a judge evaluation has been stored, which for a deal still awaiting delivery or judgment has not happened.',
+
+  lifecycleHeading: 'Lifecycle',
+
+  termsHeading: 'Deal terms',
+  termsNote:
+    'Read from the contract. The criteria hash below is the buyer’s on-chain commitment to the acceptance criteria, and it is the value the verify panel compares against a hash recomputed from the criteria themselves.',
+
+  evidenceHeading: 'Evidence',
+  evidenceNote:
+    'Every exhibit is shown in full and none is summarised. A solid left rule marks content the verdict hash commits to; a dashed rule marks recorded metadata the hash deliberately omits.',
+
+  /** Per-exhibit labels and notes. */
+  exhibits: {
+    criteria: {
+      label: 'Acceptance criteria',
+      note: 'The buyer’s terms, in the order they were agreed. Order is part of the agreement and is preserved when the hash is computed.',
+    },
+    deliverable: {
+      label: 'Deliverable',
+      note: 'The seller’s submitted work, verbatim.',
+    },
+    reasoning: {
+      label: 'Reasoning',
+      note: 'The judge’s stated justification for the outcome.',
+    },
+    prompt: {
+      label: 'Evaluation prompt',
+      note: 'The exact prompt recorded for this evaluation. It is inside the hash, so it cannot be edited after the fact without breaking the commitment. That is not the same as proof the model received it — nothing outside the backend can attest to that.',
+    },
+    response: {
+      label: 'Raw model response',
+      note: 'The model’s unedited output.',
+    },
+    model: {
+      label: 'Model',
+      note: 'Identity and version, both inside the hash, so a record cannot be silently reattributed to a different model.',
+    },
+    recordedAt: {
+      label: 'Recorded at',
+      note: 'Excluded from the hashed payload. That exclusion is what makes the digest reproducible: rehash the same inputs tomorrow and you get the same value. Include the timestamp and every recomputation fails.',
+    },
+  },
+
+  hashesHeading: 'Commitments',
+  hashesNote:
+    'The three hashes stored with this record. The verify panel recomputes each one in your browser and compares it against what the chain holds.',
+
+  settlementHeading: 'Settlement',
+  settlementLinkLabel: 'Open the settlement transaction',
+  settlementNoExplorer:
+    'No block explorer host is configured for this deployment, so the transaction hash is shown as a copyable value rather than a link. Set NEXT_PUBLIC_EXPLORER_TX_BASE to turn it into one. A guessed host would produce a confident link to a page that does not exist.',
+  settlementPending:
+    'This deal has not been settled on chain yet, so there is no transaction to reference.',
+
+} as const;
