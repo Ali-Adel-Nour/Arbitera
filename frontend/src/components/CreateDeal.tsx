@@ -99,8 +99,19 @@ export function CreateDeal() {
    * local array, so the digest commits to the bytes that were actually kept. If
    * the store ever normalises anything, this is what keeps the commitment and the
    * record in agreement.
+   *
+   * THE SELLER ADDRESS IS CHECKED HERE TOO, not only inside `sign`. Storing the
+   * criteria is the step right before the two buttons that need a valid seller,
+   * and a reviewer who typed a malformed address and clicked "Store" saw nothing —
+   * the hash still appeared, which reads as the whole form being accepted. `sign`
+   * still validates independently before either signature, since a field can be
+   * edited again after the criteria are stored.
    */
   const store = useCallback(() => {
+    if (!ADDRESS.test(seller.trim())) {
+      setFault({ field: 'seller', message: CREATE.validation.seller });
+      return;
+    }
     if (criteria.length === 0) {
       setFault({ field: 'criteria', message: CREATE.validation.criteria });
       return;
@@ -119,7 +130,7 @@ export function CreateDeal() {
     setUnavailable(null);
     setStored(persisted);
     setCriteriaHash(computeRubricHash({ acceptanceCriteria: [...persisted] }));
-  }, [criteria, dealId]);
+  }, [criteria, dealId, seller]);
 
   /** Validate everything the transaction needs. */
   const validate = useCallback((): { field: FieldName; message: string } | null => {
@@ -213,7 +224,13 @@ export function CreateDeal() {
                 {...props}
                 type="text"
                 value={seller}
-                onChange={(event) => setSeller(event.target.value)}
+                onChange={(event) => {
+                  setSeller(event.target.value);
+                  // The stored criteria hash does not depend on the seller, but the
+                  // fault message beside this field should clear the moment the
+                  // reviewer starts fixing it rather than sitting there stale.
+                  setFault((current) => (current?.field === 'seller' ? null : current));
+                }}
               />
             )}
           </FieldSet>

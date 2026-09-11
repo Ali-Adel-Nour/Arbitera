@@ -62,7 +62,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${grotesk.variable} ${mono.variable}`}>
-      <body className="bg-base text-primary font-sans antialiased">
+      {/* `suppressHydrationWarning` here is narrow and deliberate: it silences the
+          one class of mismatch Next.js itself documents as a false alarm — a
+          browser extension (Dark Reader, in the report this addresses) stamping
+          an attribute like `data-darkreader-proxy-injected` onto `<body>` before
+          React hydrates. React still discards the stray attribute and hydrates
+          correctly; this only stops the console from reporting a divergence that
+          was never in this application's own markup. It does not suppress
+          mismatches inside `children` — only on this element. */}
+      <body className="bg-base text-primary font-sans antialiased" suppressHydrationWarning>
         {/* First in the tab order, off-screen until focused. A keyboard visitor
             should not have to walk the masthead on every route. */}
         <a
