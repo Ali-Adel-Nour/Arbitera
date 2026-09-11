@@ -35,11 +35,32 @@
  * this file check the distinctness rather than leaving it to a reader counting
  * literals.
  *
+ * WHERE THE ON-CHAIN HASHES COME FROM
+ * -----------------------------------
+ * For the two deals that get judged, the three on-chain commitments are the
+ * hashes `fixtures/records.ts` computed over the record's own text. That is what
+ * makes the verify panel's three-way comparison come out `all-match` on an
+ * untampered record: the browser recomputes from the record, the backend's stored
+ * value came from the same computation, and the chain-side column below is
+ * populated from it too. Requirement 4.5's match is a consequence of how these
+ * fixtures are built rather than something maintained by hand.
+ *
+ * The two deals that are never judged keep labelled stand-in commitments for
+ * `criteriaHash`, since no record exists to hash, and `null` for the two fields
+ * the chain genuinely holds nothing in.
+ *
+ * The shared identifiers — both agents in both forms, and the two judged deals'
+ * `dealId` and `deadline` — live in `fixtures/identities.ts`, because a record
+ * commits to them and a record cannot import this module without a cycle. That
+ * module's header sets out why. `AGENT_B_ADDRESS` and `AGENT_C_ADDRESS` are
+ * re-exported from here, so this file stays the import site every other module
+ * already uses.
+ *
  * NO HAND-WRITTEN HASHES AND NO HAND-WRITTEN ADDRESSES
  * ----------------------------------------------------
- * Every 32-byte commitment and every 20-byte address in this file is DERIVED
- * from a label by `lib/canonicalize.ts`'s own hasher. Three reasons, in order of
- * how much they cost when ignored:
+ * Every 32-byte commitment and every 20-byte address reaching this file is
+ * DERIVED from a label by `lib/canonicalize.ts`'s own hasher. Three reasons, in
+ * order of how much they cost when ignored:
  *
  *   A typed-in hash cannot be checked by reading it. A wrong one produces a
  *   verify-panel mismatch indistinguishable from the tampering the panel exists
@@ -63,19 +84,33 @@
 
 import { parseUnits } from 'ethers';
 
-import { hashCanonicalValue } from '@/lib/canonicalize';
 import { USDC_DECIMALS } from '@/lib/chain';
 import type {
   Address,
   EscrowDeal,
   EscrowState,
-  Hex32,
   IsoTimestamp,
   TxHash,
   UsdcAmount,
 } from '@/types';
 
 import { CYCLE_MS, STEP_MS } from './clock';
+import {
+  AGENT_B_ADDRESS,
+  AGENT_C_ADDRESS,
+  commitment,
+  fixtureAddress,
+  JUDGED_DEALS,
+} from './identities';
+import { RECORD_COMMITMENTS } from './records';
+
+/**
+ * Both agents' addresses, re-exported so this module stays the one import site
+ * for a docket row's parties. Derived in `fixtures/identities.ts`, which the
+ * verdict records read from as well — one derivation per agent, so a row and the
+ * record it links to can never name two different addresses for the same agent.
+ */
+export { AGENT_B_ADDRESS, AGENT_C_ADDRESS };
 
 /* ===========================================================================
  * §1  The timeline shapes
@@ -124,36 +159,8 @@ export interface FixtureDeal {
 }
 
 /* ===========================================================================
- * §2  Derived identities and amounts
+ * §2  Amounts, and the one address this module still derives
  * ======================================================================== */
-
-/**
- * A 32-byte commitment derived from a label.
- *
- * A real keccak256 digest, produced by the same hasher the browser runs, over a
- * label naming what the value stands for. Non-zero for any label, which matters
- * for `dealId`: the contract rejects a zero identifier with `InvalidDealId` and
- * `isNonZeroHex32` rejects it at the boundary.
- *
- * WHAT THIS IS NOT: a commitment to the verdict material. `fixtures/records.ts`
- * owns the records and computes their hashes with `computeRubricHash`,
- * `computeDeliverableHash`, and `computeVerdictHash`; the on-chain fields below
- * are repointed at those computed values when that module lands, so an
- * untampered record produces a three-way match. Until then these are stable,
- * well-formed, clearly-labelled stand-ins — not a hash of the record's text.
- */
-const commitment = (label: string): Hex32 => hashCanonicalValue(`arbitra-fixture:${label}`);
-
-/**
- * A 20-byte address with a readable prefix and a derived tail.
- *
- * The prefix is what lets a reviewer tie a docket row to the reputation record
- * for the same agent without expanding anything; the tail comes from a hash, so
- * two agents never share a truncated display form. Lowercase throughout — see
- * the header note on why a hand-cased address is a hazard rather than a nicety.
- */
-const fixtureAddress = (prefix: string, label: string): Address =>
-  `0x${prefix}${commitment(label).slice(-(40 - prefix.length))}` as Address;
 
 /**
  * A USDC amount, in base units, from a decimal string.
@@ -171,12 +178,6 @@ const fixtureAddress = (prefix: string, label: string): Address =>
 const usdc = (decimalAmount: string): UsdcAmount =>
   parseUnits(decimalAmount, USDC_DECIMALS).toString();
 
-/** `agent-b` — the seller with a mixed record. Buyer on the deals it funds. */
-export const AGENT_B_ADDRESS: Address = fixtureAddress('b0b', 'agent-b');
-
-/** `agent-c` — the reliable seller. */
-export const AGENT_C_ADDRESS: Address = fixtureAddress('c1c', 'agent-c');
-
 /**
  * The escrowed token in every fixture deal.
  *
@@ -192,13 +193,15 @@ export const FIXTURE_TOKEN_ADDRESS: Address = fixtureAddress('05dc', 'fixture-us
  *
  * On the four static fields a reader will want to interrogate:
  *
- * `deadline` IS A FIXED INSTANT, NOT AN OFFSET FROM NOW. It has to be: task
- * 4.13's verdict records carry the same deadline inside the seventeen-field
- * preimage, and their hashes are sealed at module load. A deadline that moved
- * with the clock would change the preimage between the moment a hash was
- * computed and the moment the browser recomputed it, and the verify panel would
- * report tampering on a record nobody touched. The dates are set far enough out
- * to stay in the future through any plausible review, except on DEAL_CHARLIE,
+ * `deadline` IS A FIXED INSTANT, NOT AN OFFSET FROM NOW. It has to be: the
+ * verdict records carry the same deadline inside the seventeen-field preimage,
+ * and their hashes are sealed at module load. A deadline that moved with the
+ * clock would change the preimage between the moment a hash was computed and the
+ * moment the browser recomputed it, and the verify panel would report tampering
+ * on a record nobody touched. The two judged deals therefore take their deadline
+ * from `identities.ts`, the same binding the record hashes, rather than from a
+ * literal that could drift from it by one character. The dates are set far enough
+ * out to stay in the future through any plausible review, except on DEAL_CHARLIE,
  * where a PAST deadline is what makes `ExpiredRefund` coherent.
  *
  * `deliverableHash` AND `verdictReasoningHash` DO NOT BLINK. They are static per
@@ -229,15 +232,17 @@ export const FIXTURE_TOKEN_ADDRESS: Address = fixtureAddress('05dc', 'fixture-us
  */
 export const DEAL_ALPHA: FixtureDeal = {
   base: {
-    dealId: commitment('deal-alpha'),
+    dealId: JUDGED_DEALS.alpha.dealId,
     buyer: AGENT_B_ADDRESS,
     seller: AGENT_C_ADDRESS,
     token: FIXTURE_TOKEN_ADDRESS,
     amount: usdc('250'),
-    criteriaHash: commitment('deal-alpha:criteria'),
-    deadline: '2027-03-31T17:00:00.000Z' satisfies IsoTimestamp,
-    deliverableHash: commitment('deal-alpha:deliverable'),
-    verdictReasoningHash: commitment('deal-alpha:verdict'),
+    deadline: JUDGED_DEALS.alpha.deadline,
+    // The three commitments the chain holds, computed by `fixtures/records.ts`
+    // over this deal's approved record. Spread rather than assigned field by
+    // field: the keys are spelled as the contract spells them on both sides, so
+    // a transposition cannot be introduced by a mistyped assignment.
+    ...RECORD_COMMITMENTS.alpha,
     resolvedTransactionHash: commitment('deal-alpha:settlement') as TxHash,
   },
   offsetMs: 0,
@@ -263,15 +268,17 @@ export const DEAL_ALPHA: FixtureDeal = {
  */
 export const DEAL_BRAVO: FixtureDeal = {
   base: {
-    dealId: commitment('deal-bravo'),
+    dealId: JUDGED_DEALS.bravo.dealId,
     buyer: AGENT_C_ADDRESS,
     seller: AGENT_B_ADDRESS,
     token: FIXTURE_TOKEN_ADDRESS,
     amount: usdc('120'),
-    criteriaHash: commitment('deal-bravo:criteria'),
-    deadline: '2027-02-14T12:00:00.000Z' satisfies IsoTimestamp,
-    deliverableHash: commitment('deal-bravo:deliverable'),
-    verdictReasoningHash: commitment('deal-bravo:verdict'),
+    deadline: JUDGED_DEALS.bravo.deadline,
+    // As on DEAL_ALPHA: the chain's own copy of the record's three hashes. The
+    // tampered variant of this deal's record corrupts its STORED verdict hash and
+    // leaves these alone, which is what makes the panel report `stored-differs`
+    // rather than accusing the chain.
+    ...RECORD_COMMITMENTS.bravo,
     resolvedTransactionHash: commitment('deal-bravo:settlement') as TxHash,
   },
   offsetMs: 18_000,
