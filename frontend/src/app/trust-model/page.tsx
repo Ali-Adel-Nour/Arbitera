@@ -62,7 +62,7 @@ export default function TrustModelPage() {
         <h2 id="enforced" className="text-heading">
           {TRUST_MODEL.enforcedHeading}
         </h2>
-        <p className={`text-body text-ink-muted ${MEASURE}`}>{TRUST_MODEL.enforcedLede}</p>
+        <p className={`text-body text-muted ${MEASURE}`}>{TRUST_MODEL.enforcedLede}</p>
         <Clauses items={TRUST_MODEL.enforced} />
       </section>
 
@@ -79,7 +79,7 @@ export default function TrustModelPage() {
           <h2 id="trusted" className="text-heading">
             {TRUST_MODEL.trustedHeading}
           </h2>
-          <p className={`text-body text-ink-muted ${MEASURE}`}>{TRUST_MODEL.trustedLede}</p>
+          <p className={`text-body text-muted ${MEASURE}`}>{TRUST_MODEL.trustedLede}</p>
           <Clauses items={TRUST_MODEL.trusted} />
         </section>
       </div>
@@ -90,7 +90,7 @@ export default function TrustModelPage() {
         </h2>
         <p className={`text-body ${MEASURE}`}>{TRUST_MODEL.proves}</p>
         <p className={`text-body ${MEASURE}`}>{TRUST_MODEL.doesNotProve}</p>
-        <p className={`text-meta text-ink-muted ${MEASURE}`}>{TRUST_MODEL.scope}</p>
+        <p className={`text-meta text-muted ${MEASURE}`}>{TRUST_MODEL.scope}</p>
       </section>
     </div>
   );

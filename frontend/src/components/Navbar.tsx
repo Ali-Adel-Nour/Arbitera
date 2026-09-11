@@ -25,40 +25,51 @@ import { usePathname } from 'next/navigation';
 
 import { NAV, ROUTES, SITE } from '@/content/copy';
 
+const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+
 export function Navbar() {
   const pathname = usePathname();
 
   return (
-    <header className="flex flex-wrap items-baseline gap-x-8 gap-y-2 pt-6 pb-10">
-      <Link
-        href="/"
-        className="text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-      >
-        {SITE.name}
-      </Link>
+    <header className="bg-panel-1 relative">
+      <div className="mx-auto flex w-full max-w-[75rem] flex-wrap items-baseline gap-x-10 gap-y-3 px-4 py-5 md:px-6">
+        <Link href="/" className={`text-heading text-hi ${FOCUS}`}>
+          {SITE.name}
+        </Link>
 
-      <nav aria-label={NAV.ariaLabel}>
-        <ul className="flex flex-wrap gap-x-6 gap-y-1">
-          {ROUTES.map((route) => {
-            const current = pathname === route.href;
-            return (
-              <li key={route.href}>
-                <Link
-                  href={route.href}
-                  aria-current={current ? 'page' : undefined}
-                  className={
-                    current
-                      ? 'text-body underline decoration-1 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
-                      : 'text-body text-ink-muted hover:text-ink hover:underline hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
-                  }
-                >
-                  {route.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+        <nav aria-label={NAV.ariaLabel}>
+          <ul className="flex flex-wrap gap-x-7 gap-y-1">
+            {ROUTES.map((route) => {
+              const current = pathname === route.href;
+              return (
+                <li key={route.href}>
+                  <Link
+                    href={route.href}
+                    aria-current={current ? 'page' : undefined}
+                    className={
+                      // The active item is the accent as a FOREGROUND, which is
+                      // why `--accent-text` exists as its own token: `--accent`
+                      // measures 3.54:1 and would fail as 15px text.
+                      current
+                        ? `text-body text-accent-text transition-colors duration-100 ${FOCUS}`
+                        : `text-body text-muted hover:text-hi transition-colors duration-100 ${FOCUS}`
+                    }
+                  >
+                    {route.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+
+      {/* The one gradient rail in the application, and it is decorative: the
+          nav's own panel ground against the base is what actually separates the
+          masthead from the record. Declared in `globals.css`, referenced here
+          and nowhere else, which is how `check-design.mjs` holds the cap. */}
+      <div aria-hidden className="gradient-rail absolute inset-x-0 bottom-0 h-px" />
     </header>
   );
 }

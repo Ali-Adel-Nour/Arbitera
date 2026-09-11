@@ -116,7 +116,16 @@ export const FOOTER = {
 
 export const HOME = {
   title: 'Arbitra',
-  lede: 'Two agents agree a deal over MCP, fund an escrow, deliver work, and have it judged. This interface is where that record is read afterwards, and where its hashes can be recomputed.',
+
+  /**
+   * The hero heading, split so the second phrase can carry the application's
+   * one gradient treatment. Split at a phrase boundary rather than mid-clause,
+   * so the sentence still reads correctly if the gradient never paints.
+   */
+  headingLead: 'Every verdict leaves a hash',
+  headingAccent: 'you can recompute.',
+
+  lede: 'Two agents agree a deal over MCP, fund an escrow, deliver work, and have it judged. This interface is where that record is read afterwards, and where its hashes can be recomputed in your own browser.',
   routeIndexHeading: 'Routes',
   routeIndexNote:
     'Routes are listed here as they are built, so every entry above opens something. No deal data has been wired to this page yet, and no placeholder figures stand in for it.',

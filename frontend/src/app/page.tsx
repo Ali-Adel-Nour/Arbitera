@@ -33,14 +33,21 @@ import Link from 'next/link';
 
 import { HOME, ROUTES } from '@/content/copy';
 
-const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col gap-12 pb-4">
-      <header className="flex flex-col gap-4">
-        <h1 className="text-screen">{HOME.title}</h1>
-        <p className="text-lede max-w-[68ch]">{HOME.lede}</p>
+    <div className="flex flex-col gap-16 pb-4">
+      <header className="flex flex-col gap-5">
+        {/* The one gradient-treated heading phrase in the application. It is
+            decorative: the sentence is legible as one heading wherever the
+            colour lands, and the phrase marks no field and encodes no state. */}
+        <h1 className="text-display text-hi max-w-[24ch]">
+          {HOME.headingLead}{' '}
+          <span className="gradient-heading">{HOME.headingAccent}</span>
+        </h1>
+        <p className="text-lede text-muted max-w-[62ch]">{HOME.lede}</p>
       </header>
 
       <section aria-labelledby="route-index" className="flex flex-col gap-5">
@@ -61,12 +68,12 @@ export default function HomePage() {
                   {route.label}
                 </Link>
               </dt>
-              <dd className="text-meta text-ink-muted">{route.summary}</dd>
+              <dd className="text-meta text-muted">{route.summary}</dd>
             </div>
           ))}
         </dl>
 
-        <p className="text-meta text-ink-muted max-w-[68ch]">{HOME.routeIndexNote}</p>
+        <p className="text-meta text-muted max-w-[68ch]">{HOME.routeIndexNote}</p>
       </section>
     </div>
   );

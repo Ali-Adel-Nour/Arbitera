@@ -50,7 +50,8 @@ const FRAME = 'mx-auto w-full max-w-[75rem] px-4 md:px-6';
  * screen has to remember the values, and so every interactive element in the
  * shell is visibly focusable (Requirement 15.2).
  */
-const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 export const metadata: Metadata = {
   title: { default: SITE.name, template: `%s — ${SITE.name}` },
@@ -60,29 +61,29 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${grotesk.variable} ${mono.variable}`}>
-      <body className="bg-paper text-ink font-sans antialiased">
+      <body className="bg-base text-primary font-sans antialiased">
         {/* First in the tab order, off-screen until focused. A keyboard visitor
             should not have to walk the masthead on every route. */}
         <a
           href="#record"
-          className={`text-body sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-2 focus-visible:left-2 focus-visible:bg-paper-raised focus-visible:px-3 focus-visible:py-2 ${FOCUS}`}
+          className={`text-body sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-2 focus-visible:left-2 focus-visible:bg-panel-2 focus-visible:text-hi focus-visible:rounded-[--radius-control] focus-visible:px-3 focus-visible:py-2 ${FOCUS}`}
         >
           {NAV.skipToContent}
         </a>
 
-        <div className={`${FRAME} flex min-h-dvh flex-col`}>
-          <Navbar />
+        <Navbar />
 
-          <main id="record" className="flex-1">
+        <div className={`${FRAME} flex min-h-dvh flex-col`}>
+          <main id="record" className="flex-1 pt-10">
             {children}
           </main>
 
-          <footer className="rule-boundary mt-20 pb-10">
-            <p className="text-meta text-ink-muted max-w-[68ch] pt-4">{FOOTER.boundary}</p>
-            <p className="text-meta pt-2">
+          <footer className="rule-boundary mt-24 pb-12">
+            <p className="text-meta text-muted max-w-[68ch] pt-5">{FOOTER.boundary}</p>
+            <p className="text-meta pt-3">
               <Link
                 href="/trust-model"
-                className={`underline decoration-1 underline-offset-4 ${FOCUS}`}
+                className={`text-accent-text underline decoration-1 underline-offset-4 ${FOCUS}`}
               >
                 {FOOTER.linkLabel}
               </Link>
