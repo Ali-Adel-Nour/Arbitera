@@ -84,6 +84,12 @@ export const ROUTES: readonly RouteEntry[] = [
       'Every indexed agent, its trust score, and the resolutions the score was computed from.',
   },
   {
+    href: '/activity',
+    label: 'MCP activity',
+    summary:
+      'Every reputation lookup agents made over MCP, with the figure returned and the hiring decision that followed.',
+  },
+  {
     href: '/trust-model',
     label: 'Trust model',
     summary:
@@ -892,4 +898,75 @@ export const AGENTS = {
 
   backToAgent: 'Back to the agent',
   backToList: 'Back to the trust explorer',
+} as const;
+
+/* ===========================================================================
+ * `/activity` — the MCP reputation-query feed
+ *
+ * The screen that carries the demo's sharpest claim: a reputation query made a
+ * buyer agent walk away. That is only legible if the decision sits next to the
+ * figure that produced it, which is why every line names both.
+ *
+ * TWO THINGS THIS COPY EXISTS TO PREVENT A READER CONCLUDING.
+ *
+ * That `backend` is an error. It is the source label for a query that fell back
+ * from The Graph to the backend index. The ANSWER IS THE SAME; the path to it was
+ * different. A reader who reads `backend` as a failure has been misled by the
+ * interface's own labelling, so the note says so directly. Nothing here asserts
+ * that a subgraph is currently serving these queries either.
+ *
+ * That any of this is on-chain. Not one field in this feed is. Reputation is
+ * computed off-chain from stored judgments, and a query is a request that left no
+ * trace on any ledger. The note above the well says that before a reader starts
+ * reading lines.
+ * ======================================================================== */
+
+export const ACTIVITY = {
+  heading: 'MCP activity',
+
+  lede: 'Every reputation lookup agents made through the MCP server, newest first. Each line records who asked, who they asked about, the reliability figure that came back, and what the asking agent did next.',
+
+  loading: 'Requesting the activity feed.',
+
+  empty:
+    'No reputation queries have been recorded yet. A line appears here each time an agent looks up another agent through the MCP server.',
+
+  /** Above the well, before any line is read. */
+  provenanceNote:
+    'Nothing in this feed is on-chain data. Reputation is computed off-chain from stored judgments, and a lookup is a request that leaves no trace on any ledger. The deal records these figures derive from are on-chain; these queries are not.',
+
+  /**
+   * The whole point of the screen, stated once. A reader who skips the lines
+   * should still leave knowing what they were meant to show.
+   */
+  decisionNote:
+    'The reliability figure and the decision are on the same line on purpose. A buyer agent declining after a lookup is the protocol working: reputation changed a hiring decision without a human reading anything.',
+
+  /** What each decision means, so a label is never the only explanation. */
+  decisions: {
+    hired: 'Hired',
+    declined: 'Declined',
+    'queried-only': 'No decision recorded',
+  },
+
+  /** Where the answer came from. */
+  sources: {
+    graph: 'The Graph',
+    backend: 'Backend index',
+  },
+
+  /** Requirement 10.5 — `backend` is a fallback path, not a failure. */
+  sourceNote:
+    'A line marked “Backend index” is one whose query fell back from The Graph to the backend’s own index. The answer is the same; the path to it was different. It is not an error, and nothing here claims a subgraph is currently serving these queries.',
+
+  /** Row-level labels, so no value on a line is unlabelled. */
+  labels: {
+    querying: 'Asked',
+    queried: 'About',
+    reliability: 'Reliability returned',
+    decision: 'Then',
+    source: 'Source',
+  },
+
+  feedHeading: 'Reputation lookups',
 } as const;
