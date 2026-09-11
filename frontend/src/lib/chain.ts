@@ -33,32 +33,26 @@
 /* ===========================================================================
  * §1  Environment reads
  *
- * These are the only two `process.env` reads in this module, and they are
- * deliberately shaped as nullary readers rather than module-level constants.
+ * There are none in this module any more. `lib/env.ts` is the single
+ * `NEXT_PUBLIC_*` read site, and the two readers this file used to declare —
+ * `NEXT_PUBLIC_ARC_RPC_URL` and `NEXT_PUBLIC_EXPLORER_TX_BASE` — are now
+ * `env.arcRpcUrl` and `env.explorerTxBase`. Nothing else here moved: they were
+ * written as nullary readers in anticipation of exactly this, so absorbing them
+ * replaced two one-line bodies and left every export unchanged.
  *
- * `lib/env.ts` (task 4.6) becomes the single `NEXT_PUBLIC_*` read site for the
- * workspace; that module does not exist yet. When it lands, the two bodies
- * below become `env.arcRpcUrl` and `env.explorerTxBase` and nothing else in
- * this file moves — which is why they are functions now. Reading at call time
- * rather than at module load also keeps the module free of import-order
- * assumptions about when the environment is populated.
- *
- * The member access has to stay statically spelled out (`process.env.NAME`,
- * never `process.env[name]`) because that literal form is what the bundler
- * substitutes at build time for a `NEXT_PUBLIC_` variable.
+ * Both accessors read at call time, as the local readers did, so this module
+ * still makes no assumption about when the environment is populated. The blank
+ * rule travels with them: a whitespace-only value is absence, in `lib/env.ts`
+ * now rather than here.
  * ======================================================================== */
 
-/** A present, non-blank environment value, or `null`. Whitespace is absence. */
-const trimmedOrNull = (raw: string | undefined): string | null => {
-  const value = raw?.trim();
-  return value ? value : null;
-};
+import { env } from '@/lib/env';
 
 /** `NEXT_PUBLIC_ARC_RPC_URL` — the JSON-RPC endpoint offered to the wallet. */
-const arcRpcUrl = (): string | null => trimmedOrNull(process.env.NEXT_PUBLIC_ARC_RPC_URL);
+const arcRpcUrl = (): string | null => env.arcRpcUrl;
 
 /** `NEXT_PUBLIC_EXPLORER_TX_BASE` — a transaction-page prefix, e.g. `…/tx/`. */
-const explorerTxBase = (): string | null => trimmedOrNull(process.env.NEXT_PUBLIC_EXPLORER_TX_BASE);
+const explorerTxBase = (): string | null => env.explorerTxBase;
 
 /** Drops the absent entries, so an unset variable contributes no array member. */
 const compact = (values: readonly (string | null)[]): string[] =>
