@@ -22,6 +22,14 @@
  * the sole font-variable declaration site. Both are exempt from the confinement
  * and budget rules that would otherwise count their declarations as uses.
  * Declaration is not use — the tokens have to be born somewhere.
+ *
+ * The glyph rules (`arrow-glyph`, `middle-dot`) forbid a punctuation character,
+ * and punctuation is the one thing prose and interface text have in common. Both
+ * therefore scan a comment-stripped view of each file and both test for the
+ * glyph in a *label* position rather than anywhere at all. Requirement 14.9
+ * forbids "button labels ending in an arrow glyph", not the character; a doc
+ * comment reading `Created → Funded` is a state transition, and rewording it to
+ * satisfy a grep would make the source worse to read in exchange for nothing.
  */
 
 import fs from 'node:fs';
@@ -73,14 +81,18 @@ const PATTERNS = [
   },
   {
     id: 'arrow-glyph',
-    // A trailing `->` is one at the end of a label: before the closing quote of
-    // a string constant, before the JSX close tag, or at end of line.
-    res: [/[→↗»›]/g, /->[ \t]*(?=["'`<]|$)/gm],
+    // A *trailing* arrow, glyph or ASCII, is one at the end of a label: before
+    // the closing quote of a string constant, before the JSX close tag, or at
+    // end of line. `Created → Funded` — an arrow with prose after it — is a
+    // transition, not a label, and is not what R14.9 forbids.
+    res: [/[→↗»›][ \t]*(?=["'`<]|$)/gm, /->[ \t]*(?=["'`<]|$)/gm],
+    source: 'code',
     why: 'Buttons say what they do. No arrow glyphs on labels. See R14.9.',
   },
   {
     id: 'middle-dot',
     res: [/["'`]\s+·\s+["'`]/g, /join\(\s*["'`][^"'`]*·[^"'`]*["'`]\s*\)/g],
+    source: 'code',
     why: 'Metadata renders as a <dl>, never a middle-dot-joined string. See R14.10.',
   },
   {
@@ -155,6 +167,96 @@ function collectFiles() {
   return [...seen].sort();
 }
 
+/**
+ * Blank out comments, preserving every other byte and every newline, so a rule
+ * scanning the result reports the same line and column as it would against the
+ * original file. Comment bodies become spaces rather than disappearing.
+ *
+ * String and template literals are walked through, not stripped: a label lives
+ * in one, and a `//` inside one is not a comment. Regex literals are recognised
+ * so that a pattern containing `/*` or `//` cannot open a phantom comment; the
+ * usual heuristic applies — a `/` is a regex start only where an expression may
+ * begin, which is after an operator, an opening bracket, or a comma.
+ *
+ * CSS gets block comments only. `//` opens nothing in CSS, and treating it as a
+ * comment would eat the rest of any line holding a `https://` URL.
+ */
+function stripComments(text, rel) {
+  const css = rel.endsWith('.css');
+  const out = text.split('');
+  const blank = (from, to) => {
+    for (let i = from; i < to && i < text.length; i += 1) {
+      if (text[i] !== '\n') out[i] = ' ';
+    }
+  };
+  // The last non-space character seen at the top level, for the regex heuristic.
+  let prev = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const c = text[i];
+    const next = text[i + 1];
+
+    if (c === '/' && next === '*') {
+      const end = text.indexOf('*/', i + 2);
+      const stop = end === -1 ? text.length : end + 2;
+      blank(i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (!css && c === '/' && next === '/') {
+      const nl = text.indexOf('\n', i);
+      const stop = nl === -1 ? text.length : nl;
+      blank(i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (c === '"' || c === "'" || c === '`') {
+      i += 1;
+      while (i < text.length) {
+        if (text[i] === '\\') {
+          i += 2;
+          continue;
+        }
+        if (text[i] === c) break;
+        // An unterminated single-quoted string is far likelier to be an
+        // apostrophe in JSX text than a real literal, so stop at the newline.
+        if (c !== '`' && text[i] === '\n') break;
+        i += 1;
+      }
+      i += 1;
+      prev = c;
+      continue;
+    }
+
+    if (!css && c === '/' && (prev === '' || '(,=:[!&|?{};+-*%~^<>'.includes(prev))) {
+      // A regex literal. Walk to its unescaped closing slash, minding classes.
+      let inClass = false;
+      i += 1;
+      while (i < text.length && text[i] !== '\n') {
+        if (text[i] === '\\') {
+          i += 2;
+          continue;
+        }
+        if (text[i] === '[') inClass = true;
+        else if (text[i] === ']') inClass = false;
+        else if (text[i] === '/' && !inClass) break;
+        i += 1;
+      }
+      i += 1;
+      prev = '/';
+      continue;
+    }
+
+    if (!/\s/.test(c)) prev = c;
+    i += 1;
+  }
+
+  return out.join('');
+}
+
 function positionOf(text, index) {
   let line = 1;
   let lineStart = 0;
@@ -195,13 +297,16 @@ function matchesIn(res, rel, text, allow) {
 function main() {
   const files = collectFiles();
   const contents = new Map(files.map((rel) => [rel, fs.readFileSync(path.join(ROOT, rel), 'utf8')]));
+  /** The same files with comments blanked out, for rules declaring `source: 'code'`. */
+  const code = new Map([...contents].map(([rel, text]) => [rel, stripComments(text, rel)]));
+  const viewFor = (rule, rel) => (rule.source === 'code' ? code : contents).get(rel);
   const hits = [];
 
   for (const rule of PATTERNS) {
     for (const rel of files) {
       if (rule.exclude?.includes(rel)) continue;
       if (rule.include && !rule.include.some((p) => p.test(rel))) continue;
-      for (const hit of matchesIn(rule.res, rel, contents.get(rel), rule.allow)) {
+      for (const hit of matchesIn(rule.res, rel, viewFor(rule, rel), rule.allow)) {
         hits.push({ ...hit, id: rule.id, why: rule.why });
       }
     }
@@ -211,7 +316,7 @@ function main() {
     const byFile = new Map();
     for (const rel of files) {
       if (rule.exempt?.includes(rel)) continue;
-      const found = matchesIn(rule.res, rel, contents.get(rel), rule.allow);
+      const found = matchesIn(rule.res, rel, viewFor(rule, rel), rule.allow);
       if (found.length > 0) byFile.set(rel, found);
     }
 
