@@ -58,11 +58,20 @@ const DECISION_INK: Record<HiringDecision, string> = {
   'queried-only': 'text-muted',
 };
 
-/** A labelled term on one line. Inline, so a line wraps as a unit. */
+/**
+ * A labelled term on one line. Inline, so a line wraps as a unit.
+ *
+ * Spacing between the label and its value is a margin on the label, not a flex
+ * `gap` on this wrapper. `gap` on an `inline-flex` container was rendering as
+ * zero in production, which read as "ASKEDagent-b" with no space at all —
+ * the label and the value fused into one unreadable word. A margin is the
+ * boring, reliable choice here on purpose: it cannot silently collapse the
+ * way the gap did.
+ */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span className="inline-flex min-w-0 items-baseline gap-1.5">
-      <span className="text-caption text-muted uppercase">{label}</span>
+    <span className="mr-5 mb-1 inline-flex min-w-0 items-baseline last:mr-0">
+      <span className="text-caption text-muted mr-1.5 uppercase">{label}</span>
       {children}
     </span>
   );
@@ -111,7 +120,11 @@ export function McpActivityFeed() {
             <div className="bg-well flex flex-col py-2">
               {entries.map((entry) => (
                 <LogLine key={entry.id} timestamp={entry.timestamp}>
-                  <span className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+                  {/* `flex-wrap` with a `gap` on the parent is the same pattern
+                      that fused the label and its value inside `Field` — margins
+                      on each `Field` do the separating instead, so the space
+                      cannot be lost to the same collapse. */}
+                  <span className="flex flex-wrap items-baseline">
                     <Field label={ACTIVITY.labels.querying}>
                       <MachineValue value={entry.queryingAgent} label="querying agent" />
                     </Field>
