@@ -48,10 +48,16 @@
  * nullary readers for exactly this reason — and removes any import-order
  * assumption about when the environment is populated.
  *
- * NO SERVER-ONLY VARIABLE APPEARS HERE. `ARBITRA_INTERNAL_KEY` is read in
+ * NO SERVER-ONLY VARIABLE APPEARS HERE. The settlement secret is read in
  * `lib/serverEnv.ts` behind `import 'server-only'`, and this module is in the
- * client's import graph. A server-only value read here would be a value the
+ * client's import graph — a server-only value read here would be a value the
  * browser could hold.
+ *
+ * That variable is deliberately NOT NAMED in this comment. `check-copy.mjs`
+ * permits its identifier at exactly one site under `src/`, and that budget belongs
+ * to the module that reads the value rather than to prose describing it. Naming it
+ * here would spend the allowance and leave the real reader unable to write down
+ * what it reads.
  *
  * PURITY
  * ------
