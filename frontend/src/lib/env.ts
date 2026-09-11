@@ -89,6 +89,8 @@ const trimmedOrNull = (raw: string | undefined): string | null => {
  * | `apiBaseAll`     | `NEXT_PUBLIC_API_BASE_ALL`     | only shipped routes go to the backend  |
  * | `arcRpcUrl`      | `NEXT_PUBLIC_ARC_RPC_URL`      | no endpoint offered to the wallet      |
  * | `explorerTxBase` | `NEXT_PUBLIC_EXPLORER_TX_BASE` | settlement references degrade to hashes |
+ * | `escrowAddress`  | `NEXT_PUBLIC_ESCROW_ADDRESS`   | the write path is unavailable          |
+ * | `usdcAddress`    | `NEXT_PUBLIC_USDC_ADDRESS`     | no approval can be built               |
  */
 export const env = {
   /**
@@ -124,5 +126,29 @@ export const env = {
   /** `NEXT_PUBLIC_EXPLORER_TX_BASE` — a transaction-page prefix, e.g. `…/tx/`. */
   get explorerTxBase(): string | null {
     return trimmedOrNull(process.env.NEXT_PUBLIC_EXPLORER_TX_BASE);
+  },
+
+  /**
+   * `NEXT_PUBLIC_ESCROW_ADDRESS` — the deployed escrow contract.
+   *
+   * Absent means the write path is unavailable and says so. NOT defaulted, and
+   * not written down anywhere in the source: `check-copy.mjs` forbids a
+   * 40-character hex literal outside `src/fixtures/` for exactly this reason. An
+   * address baked into a component is an address that outlives its deployment,
+   * and a buyer signing an approval to a stale escrow loses the money.
+   */
+  get escrowAddress(): string | null {
+    return trimmedOrNull(process.env.NEXT_PUBLIC_ESCROW_ADDRESS);
+  },
+
+  /**
+   * `NEXT_PUBLIC_USDC_ADDRESS` — the ERC-20 the escrow holds.
+   *
+   * Same reasoning. Absent means the write path cannot build an approval, which
+   * is reported rather than guessed: approving the wrong token address is a
+   * signature a user cannot take back.
+   */
+  get usdcAddress(): string | null {
+    return trimmedOrNull(process.env.NEXT_PUBLIC_USDC_ADDRESS);
   },
 } as const;
