@@ -8,5 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "npm run build && mocha"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

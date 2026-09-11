@@ -6,7 +6,7 @@ dataSources:
     name: ArbiterEscrow
     network: arc-testnet
     source:
-      address: "{{ARBITER_ESCROW_ADDRESS}}"
+      address: "0x6250ce00a5a9170fb6db23f111be0d3d9d5a30f2"
       abi: ArbiterEscrow
       startBlock: 0
     mapping:
