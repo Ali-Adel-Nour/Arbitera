@@ -20,6 +20,12 @@ import { Archivo, JetBrains_Mono } from 'next/font/google';
 export const grotesk = Archivo({
   subsets: ['latin'],
   display: 'swap',
+  // `wdth` for the ruling step's 96% stretch. `wght` is supplied by default for
+  // a variable font, and the scale leans on it hard in both directions: body
+  // text sits at 420 rather than 400 to hold its optical weight against
+  // halation, while the display and ruling steps run at 350 and 300, because
+  // light-on-dark type gains apparent weight and a display face that reads
+  // correct on paper reads heavy and smeared once inverted.
   axes: ['wdth'],
   variable: '--font-grotesk',
 });
