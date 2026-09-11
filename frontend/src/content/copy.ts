@@ -135,12 +135,11 @@ export const COPY = {
 } as const;
 
 /* ===========================================================================
- * `/` — interim home
+ * `/` — the hero above the docket
  *
- * The docket replaces this body at task 13.3. Until then the page carries a
- * title, one lede, and the route index — and no figures. A stats row with
- * invented numbers would read as data to anyone opening the deployment, and the
- * whole submission argues that what is on screen can be checked.
+ * Down to a title, a split heading, and one lede. The route index that used to
+ * live here is gone: it existed only while the docket did not, and the masthead
+ * reads `ROUTES` already. Two lists of the same links is one list too many.
  * ======================================================================== */
 
 export const HOME = {
@@ -155,9 +154,92 @@ export const HOME = {
   headingAccent: 'you can recompute.',
 
   lede: 'Two agents agree a deal over MCP, fund an escrow, deliver work, and have it judged. This interface is where that record is read afterwards, and where its hashes can be recomputed in your own browser.',
-  routeIndexHeading: 'Routes',
-  routeIndexNote:
-    'Routes are listed here as they are built, so every entry above opens something. No deal data has been wired to this page yet, and no placeholder figures stand in for it.',
+} as const;
+
+/* ===========================================================================
+ * The docket, and the figures above it
+ *
+ * Every string here is written against one constraint: nothing may read as a
+ * fact the interface cannot support. The four figures are computed in the browser
+ * from the deals payload and nothing else, so each carries a `provenance` line
+ * naming what it was computed from, and each carries an `empty` sentence for the
+ * case where the answer is genuinely nothing — Requirement 16.2, and the reason
+ * `StatBlock` takes a sentence rather than rendering a dash.
+ * ======================================================================== */
+
+export const DOCKET = {
+  heading: 'The docket',
+
+  /**
+   * Names the fixture cycle in plain terms. A reviewer who watches a deal move
+   * from Funded to Settled and does not know the demo loops will read the second
+   * pass as a bug; naming the loop costs one sentence and prevents that.
+   */
+  note: 'Deals are polled every 2.5 seconds. Against the bundled fixtures this deployment replays a 48-second cycle, so a deal you watch settle will appear again at the start of the next pass.',
+
+  /** Shown once, before the first poll settles. Not an error. */
+  loading: 'Requesting the docket.',
+
+  /**
+   * The seven groups always render. This says why an empty one is not a gap,
+   * so a reader does not read six empty groups as six failures.
+   */
+  groupsNote:
+    'All seven groups are listed whether or not they currently hold a deal, so an empty group tells you nothing is in that state rather than that something failed to load.',
+
+  /** Per-group empty sentences. Each says what would put a deal in the group. */
+  empty: {
+    Created:
+      'A deal appears here once its terms are registered on chain and before the buyer funds the escrow.',
+    Funded:
+      'A deal appears here once the buyer has funded the escrow and while the seller still has time to deliver.',
+    Submitted:
+      'A deal appears here once the seller submits a deliverable and while it waits to be judged.',
+    Deliberating:
+      'A deal appears here while a judge evaluation is in flight. This group is derived by this interface, not read from the contract, and it stays empty unless the backend records when a judge call was requested.',
+    ResolvedSuccess:
+      'A deal appears here once the oracle resolves it in the seller’s favour and the escrow pays out.',
+    ResolvedRefund:
+      'A deal appears here once the oracle resolves it in the buyer’s favour and the escrow refunds. A refund is a settlement, not a failure.',
+    ExpiredRefund:
+      'A deal appears here once its deadline passes with no deliverable, or once the oracle misses its grace period after one was submitted.',
+  },
+
+  /** The derived-group notice, on the `Deliberating` group only. */
+  derivedGroupNote:
+    'Not an on-chain state. This interface infers it from a submitted deal with a judge request recorded and no verdict yet.',
+} as const;
+
+export const STATS = {
+  heading: 'Computed from this deployment’s deals',
+
+  /**
+   * One sentence over the whole row. It says the figures are the interface’s own
+   * arithmetic — which is also what the dotted rule on each block says without
+   * words, for a reader who has learnt the vocabulary.
+   */
+  note: 'Each figure below is computed in your browser from the deals the docket is showing. None is read from a shipped endpoint, and none is a placeholder.',
+
+  settledCount: {
+    label: 'Deals settled',
+    provenance: 'Counted from deals in a terminal state.',
+    empty: 'No deal in the current set has reached a terminal state yet.',
+  },
+  settledValue: {
+    label: 'USDC settled',
+    provenance: 'Summed in base units across settled deals.',
+    empty: 'Nothing has settled yet, so there is no total to sum.',
+  },
+  inEscrow: {
+    label: 'USDC in escrow',
+    provenance: 'Summed across funded and submitted deals.',
+    empty: 'No deal is currently holding funds in escrow.',
+  },
+  onDocket: {
+    label: 'Deals on the docket',
+    provenance: 'Counted from the last successful poll.',
+    empty: 'The last poll returned no deals.',
+  },
 } as const;
 
 /* ===========================================================================

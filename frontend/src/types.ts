@@ -257,6 +257,18 @@ export interface EscrowDeal {
    * `Deliberating` group renders its empty state and every submitted deal sits
    * under `Submitted`. Nothing breaks, and nothing is claimed that the data
    * does not support. Supply it and the group populates.
+   *
+   * THE FIELD MEANS "IN FLIGHT NOW", NOT "WAS REQUESTED ONCE". This distinction
+   * is load-bearing. The docket does not fetch a judgment per row — that would
+   * be one request per deal per poll — so it cannot check condition 3 itself and
+   * relies on this field being cleared once a verdict returns. A backend that
+   * keeps it set as a permanent audit record of when the request was made would
+   * leave every judged-but-unsettled deal reading as `Deliberating`, which is a
+   * claim that a model is still thinking about a verdict it already produced.
+   *
+   * If the field cannot carry that reading, do not work around it in the client:
+   * add judgment presence to the deals payload instead, and `useEscrows` will
+   * read it.
    */
   judgeRequestedAt?: IsoTimestamp;
 
