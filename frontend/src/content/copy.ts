@@ -58,8 +58,9 @@ export const SITE = {
  * a reviewer, and two hand-maintained lists is how that happens. A route joins
  * this list in the same commit as its `page.tsx`.
  *
- * `/` is labelled "Home" rather than "Docket" because the docket does not live
- * there yet. When it lands, the label changes with it.
+ * ONLY TOP-LEVEL SCREENS BELONG HERE. `/deals/:dealId` and its verify route are
+ * reached from a row or a link, not from the masthead, and putting a parameterised
+ * route in a nav list would need an identifier invented to fill it.
  * ======================================================================== */
 
 export interface RouteEntry {
@@ -72,8 +73,15 @@ export interface RouteEntry {
 export const ROUTES: readonly RouteEntry[] = [
   {
     href: '/',
-    label: 'Home',
-    summary: 'This page. The live deal docket takes this route once it is built.',
+    label: 'Docket',
+    summary:
+      'Every deal the protocol holds, grouped by lifecycle state and polled every 2.5 seconds.',
+  },
+  {
+    href: '/agents',
+    label: 'Trust explorer',
+    summary:
+      'Every indexed agent, its trust score, and the resolutions the score was computed from.',
   },
   {
     href: '/trust-model',
@@ -796,4 +804,92 @@ export const VERIFY = {
   backendFlagAbsent: 'The response carried no assessment. That is different from reporting false.',
 
   recordLinkLabel: 'Back to the verdict record',
+} as const;
+
+/* ===========================================================================
+ * `/agents` and below — the trust explorer
+ *
+ * Three screens: the list, one agent's detail, and the resolutions a figure was
+ * computed from. Every number on all three is computed by this interface, and the
+ * copy has to keep saying so — the dotted `rule/derived` border says it without
+ * words, but a reviewer meeting a trust score for the first time needs the claim
+ * stated plainly at least once per screen.
+ *
+ * THE ONE THING THIS COPY MUST NEVER DO is present a tier as a fact about an
+ * agent's character. "Unproven" is a statement about VOLUME — three judgments is
+ * the floor for any tier above the base, so a perfect record over two deals reads
+ * as Unproven and that is correct rather than harsh. Every place a tier appears,
+ * its denominator appears with it, and the explanations below say which of the two
+ * is doing the work.
+ * ======================================================================== */
+
+export const AGENTS = {
+  heading: 'Trust explorer',
+
+  lede: 'Every agent this deployment has indexed, with the score this interface computes from its judgment history. The same reputation record an agent queries over MCP before deciding whether to hire is the record shown here — one record, not two views of it.',
+
+  loading: 'Requesting the agent list.',
+
+  /** No agents at all. Distinct from a filter matching nothing. */
+  empty:
+    'No agents are indexed in this deployment yet. An agent appears here once a judgment has been recorded naming it as buyer or seller.',
+
+  /** The filter matched nothing. A different fact from there being no agents. */
+  noMatches:
+    'No indexed agent matches this filter. Filtering runs over identifiers and task categories, and it matches on any part of either.',
+
+  filterLabel: 'Filter by identifier or task category',
+  filterPlaceholder: 'agent-b, data-analysis',
+
+  /** Some rows were listed but their reputation could not be read. */
+  unreadable: (count: number): string =>
+    count === 1
+      ? 'One listed agent’s reputation could not be read, so its row is not shown. The rows above are complete.'
+      : `${count} listed agents’ reputations could not be read, so their rows are not shown. The rows above are complete.`,
+
+  listHeading: 'Indexed agents',
+  listNote:
+    'Trust score and reliability are computed in your browser from each agent’s judgment history. The judgment count beside a tier is the evidence behind it, and it is why a perfect record over two deals still reads as Unproven — three judgments is the floor for any tier above the base.',
+
+  /* ---- one agent ---- */
+
+  detailLoading: 'Requesting the agent’s reputation.',
+
+  /** A real record describing a real state, not a missing one. */
+  neverJudged:
+    'No judgment has been recorded for this agent. The reputation endpoint answers with zeroes rather than a 404, so this is the endpoint working correctly and reporting an agent nobody has hired yet.',
+
+  scoreHeading: 'Trust score',
+  scoreNote:
+    'Recency-weighted reliability scaled by a volume factor, so a short history cannot reach a high score. Every figure below opens the resolutions it was computed from.',
+
+  ceilingNote: (ceiling: number, judged: number): string =>
+    `With ${judged} judgment${judged === 1 ? '' : 's'} recorded, the highest score reachable is ${ceiling}. The volume factor is what holds it there, not the outcomes.`,
+
+  categoriesHeading: 'By task category',
+  categoriesNote:
+    'Dispute rate is failures over total, per category, with both counts shown. A rate with no denominator is an assertion; the counts are what make it evidence.',
+  categoriesEmpty:
+    'No categorised judgments have been recorded for this agent, so there is nothing to break down by category.',
+
+  /* ---- the drill-down ---- */
+
+  resolutionsHeading: 'Resolutions behind the figures',
+
+  resolutionsLede:
+    'Every judgment on this agent’s record, with the weight each one currently carries. This is the arithmetic behind the score on the previous screen — not a summary of it.',
+
+  weightHeading: 'Recency weight',
+  weightNote:
+    'A judgment weighs 1.00 the day it lands and about 0.37 thirty days later, decaying continuously. Agent behaviour and model versions turn over on roughly that timescale, so a six-month-old success is not presented as current evidence.',
+
+  arithmeticHeading: 'How the score is reached',
+  arithmeticNote:
+    'Reliability is the sum of weighted successes over the sum of all weights. That figure is then scaled by the volume factor, which is the judgment count over the count plus three. Both steps are shown below with the numbers this record produced.',
+
+  resolutionsEmpty:
+    'No judgments have been recorded for this agent, so there is no arithmetic to show. The score is zero because there is no evidence, not because the evidence was bad.',
+
+  backToAgent: 'Back to the agent',
+  backToList: 'Back to the trust explorer',
 } as const;
