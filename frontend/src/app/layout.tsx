@@ -23,13 +23,13 @@
  *
  * WHAT THE SHELL DOES NOT DO
  * --------------------------
- * No dark surface, no display-scale type, no motion. The eighth type step and
- * the inverted surface pairing are spent once in the whole application, on the
+ * No bold ground, no ruling-scale type, no motion. The top type step and the
+ * one high-chroma surface are spent once in the whole application, on the
  * verdict banner, and a shell that reached for either would take the impact out
  * of the one place it is meant to land. Neither token is named here, because
- * `check-design.mjs` counts a mention in a comment as a reference and the
- * budget belongs to `VerdictBanner.tsx` alone. The shell tops out at the
- * `screen` step on `--paper`.
+ * `check-design.mjs` counts a mention in a comment as a reference and both
+ * budgets belong to `VerdictBanner.tsx` alone. The shell tops out at the
+ * `screen` step on the base surface.
  */
 
 import type { Metadata } from 'next';
@@ -45,10 +45,11 @@ import './globals.css';
 const FRAME = 'mx-auto w-full max-w-[75rem] px-4 md:px-6';
 
 /**
- * The one focus treatment in the application: a 2px `--ink` outline, offset so
- * it clears the glyphs rather than touching them. Shared as a constant so no
- * screen has to remember the values, and so every interactive element in the
- * shell is visibly focusable (Requirement 15.2).
+ * The one focus treatment in the application: a 2px accent outline, offset so it
+ * clears the glyphs rather than touching them. Shared as a constant so no screen
+ * has to remember the values, and so every interactive element in the shell is
+ * visibly focusable (Requirement 15.2). Never transitioned — a focus ring that
+ * fades in is a focus ring a keyboard user outruns.
  */
 const FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
