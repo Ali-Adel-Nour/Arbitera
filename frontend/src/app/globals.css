@@ -1,0 +1,531 @@
+@import 'tailwindcss';
+
+/* ===========================================================================
+ * Arbitra design tokens — the sole token-declaration site in the application.
+ *
+ * A dark instrument panel over a court record. Near-black base, lifted panels,
+ * one saturated accent, generous padding, large light display type.
+ *
+ * That is a change of surface, not a change of argument. The discipline that
+ * survives the restyle is the part that keeps this from being one more dark
+ * dashboard: monospace stays confined to machine values, every rule and border
+ * still means something specific, every container kind stays structurally
+ * distinct, and the boldest treatment in the application is spent once, on the
+ * ruling.
+ *
+ * Tailwind v4 is CSS-first: this file is the theme. `tailwind.config.ts` is
+ * vestigial and is not loaded, and there is no `@config` directive.
+ *
+ * DECLARATION IS NOT USE. `scripts/check-design.mjs` exempts this file from the
+ * confinement and budget rules for that reason — the tokens have to be born
+ * somewhere. Every other file under `src/` consumes them, and no other file
+ * declares one.
+ *
+ * `@theme static` rather than `@theme` so that every token is emitted even
+ * before a consumer exists. Most of these have no call site until the screens
+ * land, and a token that vanishes from the stylesheet cannot be inspected in
+ * devtools or asserted on by a test.
+ *
+ * EVERY CONTRAST RATIO BELOW IS COMPUTED, NOT ESTIMATED (Requirement 15.7).
+ * Three tokens were moved after computing rather than asserting; each one says
+ * so at its declaration. Body text needs 4.5:1, large text and interface
+ * boundaries need 3:1.
+ * ======================================================================== */
+
+@theme static {
+  /* -------------------------------------------------------------------------
+   * Families
+   *
+   * The real faces arrive from `next/font/google` via `src/app/fonts.ts`, which
+   * sets `--font-grotesk` and `--font-mono` on the document element. next/font
+   * emits its declarations unlayered, so they win over these layered theme
+   * defaults on the same element; the fallback stacks below are what renders if
+   * the class is ever missing.
+   * ---------------------------------------------------------------------- */
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+
+  /* -------------------------------------------------------------------------
+   * Type scale — nine named steps, and only nine.
+   *
+   * Every text element takes its size from one of these. There is no arbitrary
+   * `text-[15px]` anywhere, and `check-design.mjs` greps for bracket-literal
+   * font sizes and for tracking literals.
+   * ---------------------------------------------------------------------- */
+
+  /* 1 — THE CAPTION-AND-LABEL STEP, and the sole carrier of tracking as a
+   * device. `text-caption` IS the tracked-capitals treatment: the utility
+   * below bundles the transform with the size, so there is no way to get
+   * tracked caps at a heading size without writing a tracking literal, which
+   * the gate catches. Small tracked labels sitting above their values are how
+   * this palette gets its density, and they are how a metadata pair is
+   * labelled. (Requirements 14.2, 14.10) */
+  --text-caption: 0.6875rem; /* 11px */
+  --text-caption--line-height: 1rem; /* 16px */
+  --text-caption--font-weight: 600;
+  --text-caption--letter-spacing: 0.1em;
+
+  /* 2 — metadata values, provenance lines, footnotes, help text. Sentence
+   * case, barely tracked: this is NOT a label step. */
+  --text-meta: 0.75rem; /* 12px */
+  --text-meta--line-height: 1.125rem; /* 18px */
+  --text-meta--font-weight: 400;
+  --text-meta--letter-spacing: 0.005em;
+
+  /* 3 — docket rows, log lines, table cells, and every machine value */
+  --text-record: 0.8125rem; /* 13px */
+  --text-record--line-height: 1.25rem; /* 20px */
+  --text-record--font-weight: 400;
+  --text-record--letter-spacing: 0;
+
+  /* 4 — prose and exhibit bodies. Weight 420, not 400: light-on-dark type
+   * gains apparent weight from halation, and 420 holds the same optical
+   * weight this face had at 400 on paper. */
+  --text-body: 0.9375rem; /* 15px */
+  --text-body--line-height: 1.5rem; /* 24px */
+  --text-body--font-weight: 420;
+  --text-body--letter-spacing: 0;
+
+  /* 5 — one paragraph per screen, no more */
+  --text-lede: 1.125rem; /* 18px */
+  --text-lede--line-height: 1.75rem; /* 28px */
+  --text-lede--font-weight: 400;
+  --text-lede--letter-spacing: -0.006em;
+
+  /* 6 — exhibit and section headers */
+  --text-heading: 1.3125rem; /* 21px */
+  --text-heading--line-height: 1.75rem; /* 28px */
+  --text-heading--font-weight: 550;
+  --text-heading--letter-spacing: -0.01em;
+
+  /* 7 — screen titles. 30px at >=480px, clamping to 24px at 375px. */
+  --text-screen: clamp(1.5rem, 0.6964rem + 3.4286vw, 1.875rem);
+  --text-screen--line-height: 2.25rem; /* 36px */
+  --text-screen--font-weight: 500;
+  --text-screen--letter-spacing: -0.014em;
+
+  /* 8 — stat block figures and the home hero heading. Weight 350: display
+   * type runs LIGHTER on dark, not heavier, which is both the correction for
+   * inverted stroke gain and the large-light-heading look this palette wants. */
+  --text-display: clamp(1.875rem, 0.7679rem + 4.7619vw, 2.5rem); /* 30 -> 40px */
+  --text-display--line-height: 2.75rem; /* 44px */
+  --text-display--font-weight: 350;
+  --text-display--letter-spacing: -0.018em;
+
+  /* 9 — RESERVED. The PASS/FAIL word, once, in `VerdictBanner`.
+   * 64px at >=480px, clamping to 44px at 375px so a one-word ruling cannot
+   * force horizontal overflow on a phone. */
+  --text-ruling: clamp(2.75rem, 0.5rem + 9.5238vw, 4rem); /* 44 -> 64px */
+  --text-ruling--line-height: 1;
+  --text-ruling--font-weight: 300;
+  --text-ruling--letter-spacing: -0.022em;
+
+  /* The width axis, used once, by the ruling step. Kept as its own token
+   * because Tailwind's font-size sub-keys cover line-height, weight, and
+   * tracking but not stretch. */
+  --ruling-stretch: 96%;
+
+  /* THE GAPS BETWEEN STEPS 7, 8 AND 9 ARE DELIBERATE AND LOAD-BEARING.
+   * There is no 34px, 48px, or 52px step, so nothing can creep toward the
+   * ruling step by picking the size next to it. The only size above `display`
+   * is the one reserved for the verdict word. Adding an intermediate step here
+   * would quietly dismantle the boldness budget Requirements 8.9 and 14.13
+   * depend on. */
+
+  /* -------------------------------------------------------------------------
+   * Surfaces — one base, three lifted, one saturated.
+   *
+   * Elevation is expressed by surface tone PLUS a 1px border, never by shadow
+   * (Requirement 14.4). There are no shadow tokens in this file and no box
+   * shadow anywhere in the application: a shadow implies a floating object,
+   * and a record is not a floating object.
+   * ---------------------------------------------------------------------- */
+  --base: #0a0c10; /* page background */
+  --panel-1: #12151b; /* standard lifted panel: exhibits, stat blocks, tables */
+  --panel-2: #1a1e26; /* second lift: pill grounds, table headers, hovered rows */
+
+  /* Recessed, BELOW the base. The dark-palette inversion of a sunken well, and
+   * it does the same job: a machine transcript is recessed into the page, not
+   * raised off it, which is why the same content reads as a console here. */
+  --well: #0d1014;
+
+  /* The verdict banner background. NOWHERE ELSE — `check-design.mjs` computes
+   * this token's OKLCH chroma (0.109) and confines any background above 0.08
+   * to a single file. See the boldness note at the foot of this file. */
+  --ruling-ground: #1b1e5c;
+
+  /* -------------------------------------------------------------------------
+   * Text and borders
+   * ---------------------------------------------------------------------- */
+
+  /* 17.77:1 on --base, 16.60:1 on --panel-1, 15.16:1 on --panel-2 */
+  --text-hi: #f2f4f8;
+
+  /* 13.81:1 on --panel-1, 12.62:1 on --panel-2, 11.44:1 on --ruling-ground */
+  --text-primary: #dce0e8;
+
+  /* 7.43:1 on --base, 6.94:1 on --panel-1, 6.34:1 on --panel-2.
+   *
+   * LIFTED FROM #7C8695, WHICH IS THE TONE THIS PALETTE'S REFERENCE USES.
+   * That value measured 4.96:1 on --panel-1 but 4.53:1 on --panel-2 — passing
+   * by a rounding step, on the surface where caption labels most often sit.
+   * Muted text on a lifted panel is the pairing dark palettes fail first, and
+   * it failed here first. Do not put it back. */
+  --text-muted: #98a0ae;
+
+  /* Every meaning-bearing rule, border and divider in the token table below.
+   * 4.13:1 on --base, 3.86:1 on --panel-1, 3.53:1 on --panel-2,
+   * 4.03:1 on --well, 3.20:1 on --ruling-ground.
+   *
+   * LIFTED FROM #5A6472, chosen to look like the reference's hairlines. That
+   * measured 3.05:1 on --panel-1 but 2.78:1 on --panel-2, so every rule inside
+   * a table header or a hovered row was under the boundary threshold. The
+   * visual consequence of lifting it is intended: rules read as a ruled ledger
+   * rather than as a soft divider. */
+  --border-rule: #6b7480;
+
+  /* DECORATIVE PANEL OUTLINE ONLY, and documented as sub-threshold rather than
+   * falsely claimed compliant. 1.38:1 on --panel-1, 1.47:1 on --base.
+   *
+   * It is a thin dark outline in the reference's manner and it is not a
+   * boundary a reader has to perceive: Requirement 14.4 has elevation tone and
+   * border doing the differentiating together, and the step from --base
+   * through --panel-1 to --panel-2 is the perceptible signal. Every border that
+   * MEANS something uses --border-rule at >=3:1. The honest statement is that
+   * this interface has one sub-threshold line in it, that it carries no
+   * information, and that no component depends on seeing it. */
+  --border-panel: #2a303a;
+
+  /* -------------------------------------------------------------------------
+   * Accents
+   *
+   * THE ACCENT IS SPLIT IN TWO ON PURPOSE, and this is the pairing a dark
+   * palette most reliably gets wrong.
+   * ---------------------------------------------------------------------- */
+
+  /* BACKGROUND AND BORDER ONLY, NEVER TEXT. 3.54:1 on --panel-1 — fine as a
+   * 1px stroke or as a filled ground carrying dark text, not fine as a 13px
+   * link. Rather than let one token serve both jobs and quietly fail one, the
+   * layer splits them. Chroma 0.215, so `check-design.mjs` confines
+   * `bg-accent` to `Button.tsx`: it is a CONTROL-scale fill, not a region. */
+  --accent: #2563eb;
+
+  /* The accent when it has to be a foreground. 8.91:1 on --base,
+   * 8.32:1 on --panel-1, 7.60:1 on --panel-2. */
+  --accent-text: #7fb0ff;
+
+  /* Secondary accent, sparing: the derived-metric rule, and the far stop of
+   * the one gradient rail. 6.72:1 on --panel-1, 6.14:1 on --panel-2. */
+  --accent-2: #a78bfa;
+
+  /* Verdict banner text. Nowhere else. 14.15:1 on --ruling-ground. */
+  --ruling-ink: #f5f7ff;
+
+  /* -------------------------------------------------------------------------
+   * Tailwind colour namespace
+   *
+   * Aliases the canonical tokens above so `bg-panel-1`, `text-hi`,
+   * `border-rule` and friends exist as utilities. The canonical names are what
+   * the design document and the property tests refer to; these are the same
+   * values under Tailwind's naming.
+   * ---------------------------------------------------------------------- */
+  --color-base: var(--base);
+  --color-panel-1: var(--panel-1);
+  --color-panel-2: var(--panel-2);
+  --color-well: var(--well);
+  --color-ruling-ground: var(--ruling-ground);
+  --color-hi: var(--text-hi);
+  --color-primary: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-rule: var(--border-rule);
+  --color-panel-edge: var(--border-panel);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-2: var(--accent-2);
+  --color-ruling-ink: var(--ruling-ink);
+
+  /* -------------------------------------------------------------------------
+   * State colours — five inks, each with a solid pill ground.
+   *
+   * Each is paired with a text label in every instance, so zero status
+   * indications rely on colour alone (Requirements 14.5, 14.6). Each pill
+   * ground is a solid hex rather than an alpha over a panel, so the ratios
+   * below are exact rather than dependent on what the pill sits on.
+   *
+   * REFUNDED IS BLUE, NOT RED, on purpose. A buyer refund is a correct
+   * protocol outcome, not an error, and colouring it as failure would
+   * editorialise. Red is reserved for the one thing that genuinely means
+   * something is wrong: a hash mismatch.
+   *
+   * REFUNDED BLUE AND THE ACCENT BLUE ARE DELIBERATELY DIFFERENT HUES —
+   * sky against indigo — because a state ink and an interactive affordance
+   * must not be confusable. When they collide a reader learns that blue means
+   * "click" and then misreads a settled refund as a button. The state ink is
+   * lighter and cooler, it never appears as a filled region, and the accent
+   * never appears as a state.
+   * ---------------------------------------------------------------------- */
+
+  /* 9.75:1 on --panel-1, 8.90:1 on --panel-2, 8.59:1 on its own pill ground */
+  --state-paid: #3dd68c;
+  --state-paid-ground: #10251c;
+
+  /* 8.28:1 / 7.56:1 / 7.34:1 */
+  --state-refunded: #4fb8f5;
+  --state-refunded-ground: #0e2233;
+
+  /* 9.54:1 / 8.71:1 / 8.28:1 */
+  --state-deliberating: #e8b341;
+  --state-deliberating-ground: #2a2110;
+
+  /* 7.19:1 / 6.56:1 / 6.40:1 */
+  --state-expired: #9aa3b2;
+  --state-expired-ground: #1d2028;
+
+  /* 6.61:1 / 6.04:1 / 6.28:1 */
+  --state-tampered: #f87171;
+  --state-tampered-ground: #2a1414;
+
+  --color-state-paid: var(--state-paid);
+  --color-state-paid-ground: var(--state-paid-ground);
+  --color-state-refunded: var(--state-refunded);
+  --color-state-refunded-ground: var(--state-refunded-ground);
+  --color-state-deliberating: var(--state-deliberating);
+  --color-state-deliberating-ground: var(--state-deliberating-ground);
+  --color-state-expired: var(--state-expired);
+  --color-state-expired-ground: var(--state-expired-ground);
+  --color-state-tampered: var(--state-tampered);
+  --color-state-tampered-ground: var(--state-tampered-ground);
+
+  /* -------------------------------------------------------------------------
+   * Structural rule tokens — seven, each with a meaning.
+   *
+   * THIS IS THE LOAD-BEARING CARRY-OVER FROM THE PREVIOUS AESTHETIC, and the
+   * reason this interface is not its own reference. A reader who learns these
+   * can tell, at a glance and without reading a label, which displayed fields
+   * are inside the hashed verdict preimage and which are excluded from it
+   * (Requirement 14.8). The reference has no equivalent: its borders are all
+   * the same 1px line, which is exactly what makes every panel in it
+   * interchangeable.
+   *
+   * The MEANINGS are unchanged from the paper palette. Only the appearances
+   * are retargeted from ink-on-paper to light-on-dark.
+   *
+   * Property 63 asserts the correspondence between token and meaning, so the
+   * meaning travels with the token — here, in the comment above it.
+   * ---------------------------------------------------------------------- */
+
+  /* Shared left-edge inset for the five accent rules. */
+  --rule-inset: 0.75rem; /* 12px */
+
+  /* "This value is bytes-for-bytes inside the hashed preimage."
+   * INVERTS FROM DARKEST TO LIGHTEST. On paper the emphatic rule was 2px of
+   * ink; on a near-black panel it is 2px of the brightest text token. The
+   * relation that carries the meaning is "this is the highest-contrast line
+   * available", and that relation survives inversion. */
+  --rule-hashed-width: 2px;
+  --rule-hashed-style: solid;
+  --rule-hashed-color: var(--text-hi);
+
+  /* "Recorded metadata. Not in the preimage." The quieter of the pair. */
+  --rule-excluded-width: 1px;
+  --rule-excluded-style: dashed;
+  --rule-excluded-color: var(--border-rule);
+
+  /* "Computed by this interface. Not read from the protocol."
+   * MOVED FROM THE DELIBERATING AMBER TO THE VIOLET SECONDARY, and this is a
+   * real improvement the restyle bought. On paper, derived-metric rules and
+   * the Deliberating state chip shared a hue, so amber ambiguously said either
+   * "off-chain state" or "computed here". Splitting them gives the secondary
+   * accent its one job — provenance — and leaves amber meaning exactly one
+   * thing. */
+  --rule-derived-width: 1px;
+  --rule-derived-style: dotted;
+  --rule-derived-color: var(--accent-2);
+
+  /* "This value does not match its recomputation." */
+  --rule-tampered-width: 2px;
+  --rule-tampered-style: solid;
+  --rule-tampered-color: var(--state-tampered);
+
+  /* "Trust boundary. Above: enforced by the contract. Below: trusted
+   * infrastructure." The only three-part rule in the system, and the one place
+   * a structural device does argumentative work: the on-chain column is
+   * separated from the other two by a heavier line than anything else on the
+   * page. Appears at most twice per screen. */
+  --rule-boundary-lead: 3px;
+  --rule-boundary-gap: 2px;
+  --rule-boundary-trail: 1px;
+  --rule-boundary-color: var(--text-hi);
+  --rule-boundary-trail-color: var(--border-rule);
+  --rule-boundary-gap-color: var(--base);
+
+  /* "Same record, next field." */
+  --rule-record-width: 1px;
+  --rule-record-style: solid;
+  --rule-record-color: var(--border-rule);
+
+  /* "End of one record, start of another." Hairline within a record, full rule
+   * between records: that contrast is what makes a dense list read as a ledger
+   * rather than a table, and it is information — a reader can see where one
+   * deal ends without reading any text. */
+  --rule-instance-width: 1px;
+  --rule-instance-style: solid;
+  --rule-instance-color: var(--border-rule);
+
+  /* -------------------------------------------------------------------------
+   * Radius, and the absence of shadow.
+   *
+   * Rounded thin-bordered panels are the reference's idiom and they are
+   * adopted. There are NO shadow tokens: elevation is surface tone plus
+   * border, per Requirement 14.4, and `check-design.mjs` greps for shadow
+   * utilities outside this file.
+   * ---------------------------------------------------------------------- */
+  --radius-panel: 12px;
+  --radius-control: 8px;
+  --radius-chip: 999px;
+}
+
+/* ===========================================================================
+ * Rule utilities
+ *
+ * One utility per rule token, named `rule-*` so the token, the utility, and the
+ * meaning share a single searchable stem for `check-design.mjs` and Property 63.
+ * ======================================================================== */
+
+/* "This value is bytes-for-bytes inside the hashed preimage." */
+@utility rule-hashed {
+  border-inline-start: var(--rule-hashed-width) var(--rule-hashed-style) var(--rule-hashed-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Recorded metadata. Not in the preimage." */
+@utility rule-excluded {
+  border-inline-start: var(--rule-excluded-width) var(--rule-excluded-style)
+    var(--rule-excluded-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Computed by this interface. Not read from the protocol." */
+@utility rule-derived {
+  border-inline-start: var(--rule-derived-width) var(--rule-derived-style)
+    var(--rule-derived-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "This value does not match its recomputation." */
+@utility rule-tampered {
+  border-inline-start: var(--rule-tampered-width) var(--rule-tampered-style)
+    var(--rule-tampered-color);
+  padding-inline-start: var(--rule-inset);
+}
+
+/* "Trust boundary. Above: enforced by the contract. Below: trusted
+ * infrastructure."
+ *
+ * Three parts on the leading edge: a 3px rule as the border, then a 2px gap and
+ * a 1px trailing rule painted as a padding-box gradient. The gradient carries
+ * the second and third parts rather than a pseudo-element, so the rule survives
+ * on elements that already use `::before`, and rather than a box shadow because
+ * the application has none. */
+@utility rule-boundary {
+  border-block-start: var(--rule-boundary-lead) solid var(--rule-boundary-color);
+  padding-block-start: calc(var(--rule-boundary-gap) + var(--rule-boundary-trail));
+  background-clip: padding-box;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rule-boundary-gap-color) 0 var(--rule-boundary-gap),
+    var(--rule-boundary-trail-color) var(--rule-boundary-gap)
+      calc(var(--rule-boundary-gap) + var(--rule-boundary-trail)),
+    transparent calc(var(--rule-boundary-gap) + var(--rule-boundary-trail))
+  );
+  background-repeat: no-repeat;
+  background-position: top left;
+  background-size: 100% calc(var(--rule-boundary-gap) + var(--rule-boundary-trail));
+}
+
+/* "Same record, next field." Quieter than `rule-instance` or the ledger
+ * reading collapses. Resolved as an opacity of the compliant rule colour
+ * rather than a new darker hex, so there is one source of truth for the rule
+ * colour; the field labels do the identifying and the line does the grouping. */
+@utility rule-record {
+  border-block-end: var(--rule-record-width) var(--rule-record-style) var(--rule-record-color);
+  border-block-end-color: color-mix(in srgb, var(--rule-record-color) 50%, transparent);
+}
+
+/* "End of one record, start of another." Full strength, because this is a
+ * genuine boundary a reader must perceive. */
+@utility rule-instance {
+  border-block-end: var(--rule-instance-width) var(--rule-instance-style)
+    var(--rule-instance-color);
+}
+
+/* The width axis, used once, by the ruling step. */
+@utility ruling-stretch {
+  font-stretch: var(--ruling-stretch);
+}
+
+/* ===========================================================================
+ * The two permitted gradients
+ *
+ * Requirement 14.9 permits ONE gradient-treated heading phrase and ONE gradient
+ * rail across the whole application, and permits zero information to be carried
+ * by gradient alone. `check-design.mjs` enforces the cap by confining gradient
+ * functions to this file and allowing each class name in at most one component.
+ * ======================================================================== */
+
+/* The one gradient heading phrase, on the home hero.
+ *
+ * The verdict banner was the other candidate and was rejected: its boldness
+ * budget is already spent on the ruling step and the application's only
+ * saturated region, and — the deciding reason — the banner's job is to state a
+ * binary outcome, so a treatment that varies continuously across the word PASS
+ * would be decoration on the one element that is pure information. The hero has
+ * no such content, which is exactly why it can afford it.
+ *
+ * Decorative: the full sentence is legible as one heading regardless of where
+ * the colour lands, and the phrase marks no field and encodes no state. */
+.gradient-heading {
+  background-image: linear-gradient(100deg, var(--accent-text), var(--accent-2));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Where `background-clip: text` is unavailable the phrase renders in the
+ * accent's foreground token at 8.91:1 on the base, so nothing is lost. */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .gradient-heading {
+    background-image: none;
+    color: var(--accent-text);
+  }
+}
+
+/* The one gradient rail, on the global navigation's bottom divider.
+ *
+ * Decorative, and separates nothing a reader needs to perceive — the nav's own
+ * panel ground against the base does that. Deliberately NOT spent on the
+ * lifecycle rail, where a gradient would read as progress and would therefore
+ * be information carried by gradient alone, which criterion 9 forbids. */
+.gradient-rail {
+  background-image: linear-gradient(90deg, var(--accent), var(--accent-2), transparent);
+}
+
+/* ===========================================================================
+ * Reduced motion
+ *
+ * One block, so no component has to remember. Under `prefers-reduced-motion:
+ * reduce` the verdict rule renders at full width immediately and every
+ * interactive transition drops to zero. The state change is identical in every
+ * case; only the time is removed. The verdict outcome is announced through an
+ * `aria-live` region regardless, so the information was never carried by
+ * motion. (Requirement 15.4)
+ * ======================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

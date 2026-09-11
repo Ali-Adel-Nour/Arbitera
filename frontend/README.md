@@ -1,0 +1,146 @@
+# Arbitra Frontend
+
+The evidence surface for the Arbitra escrow and arbitration protocol. Agents
+create and settle deals over MCP; this application renders the record and lets a
+visitor recompute the hashes in their own browser.
+
+## Commands
+
+Run from anywhere in the monorepo:
+
+```sh
+npm install --workspace=@arbiter/frontend
+npm run dev       --workspace=@arbiter/frontend   # development server
+npm run typecheck --workspace=@arbiter/frontend   # tsc --noEmit
+npm run test      --workspace=@arbiter/frontend   # node:test via tsx
+```
+
+Node 22 or newer is required (`engines.node >= 22`).
+
+`npm run build` is not defined yet. It arrives with the copy and design gates it
+has to run, so that the first `build` script in this workspace is the gated one
+rather than a bare `next build` that a later commit has to remember to wrap.
+
+## Environment
+
+| Variable | Required | Effect when unset |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE` | no | Requests resolve relative to this deployment, so the bundled fixture route handlers serve every screen |
+| `NEXT_PUBLIC_ESCROW_ADDRESS` | no | Settlement references render as copyable hashes with a note that the contract is not deployed, instead of explorer links |
+| `NEXT_PUBLIC_EXPLORER_TX_BASE` | no | No explorer host is assumed. Settlement references render as copyable hashes, and the wallet add-chain payload omits `blockExplorerUrls` rather than registering a guessed host permanently |
+| `NEXT_PUBLIC_ARC_RPC_URL` | no | The wallet add-chain payload carries no RPC endpoint, so a wallet that does not already know the chain cannot be asked to add it |
+| `ARBITRA_INTERNAL_KEY` | no | Server-only. Sandbox settlement requests return 401 without it. Never `NEXT_PUBLIC_`-prefixed |
+
+There is no default for either host in the two rows above. The RPC and explorer
+hosts for the target chain are not confirmed, and `src/lib/chain.ts` is written
+to contribute nothing to the wallet payload rather than a guess. That module is
+also the only place the chain id appears, in both its decimal and hexadecimal
+form; copy that names the network interpolates the constant.
+
+Gas on the target chain is denominated in USDC as the native token, not ETH.
+Note the two decimals values in `src/lib/chain.ts` and do not merge them: the
+18 on `nativeCurrency` exists solely because wallet registration validates that
+field at 18, while `USDC_DECIMALS` is 6 and is what every escrow amount uses.
+
+## The bundled mock API
+
+With `NEXT_PUBLIC_API_BASE` unset, every request resolves relative to this
+deployment and lands on the route handlers under `src/app/api/`. They read the
+fixtures in `src/fixtures/` directly and make no outbound request, so every
+screen works with no backend, no model provider, and no key configured.
+
+| Route | Serves |
+| --- | --- |
+| `GET /api/deals` | Every fixture deal at the current instant, plus the server's `asOf` |
+| `GET /api/deals/:dealId` | One deal, including the three commitments the chain holds |
+| `GET /api/verify/:dealId` | The canonical preimage record, byte-exact as stored, for recomputation in the browser |
+| `GET /api/judgments/:dealId` | The stored record plus the backend's own `verified` flag |
+| `GET /api/reputation/:agent` | The reputation record. Either identifier form resolves; an unknown agent gets a zero-filled summary rather than a 404 |
+| `GET /api/agents` | The agent index the trust explorer lists |
+| `GET /api/mcp-activity` | The reputation-query log, newest first |
+| `POST /api/judge` | A fixture verdict for a submitted deliverable. No model is called and every record says so in its reasoning |
+
+Deal state advances with wall-clock time on a 48-second cycle, so two calls to
+`/api/deals` a few seconds apart can return different state groupings. Every
+handler is `force-dynamic`: a statically rendered one would serve the instant the
+build ran, forever.
+
+### Reaching the tampered record
+
+One fixture record has a deliberately corrupted stored hash, so a mismatch can be
+demonstrated rather than described. It is the refunded fixture deal — the one
+whose seller is `agent-b` — and because it is that record after a corruption, it
+carries the same `dealId`. One path cannot serve both, so the corrupted variant
+answers on `?tampered=1`:
+
+```sh
+BASE=http://localhost:3000
+DEAL=$(curl -s "$BASE/api/deals" | grep -o '"dealId":"0x[0-9a-f]*"' | sed -n 2p | cut -d'"' -f4)
+
+curl -s "$BASE/api/verify/$DEAL"              # intact:    verified true
+curl -s "$BASE/api/verify/$DEAL?tampered=1"   # corrupted: verified false
+```
+
+Only that one record has a corrupted variant. `?tampered=1` on any other deal
+answers 404 rather than the intact record, so a clean three-way match can never
+be mistaken for the corrupted case. The intact path never reads the corrupted
+record at all, so nothing a caller sends can make an untouched record look
+tampered with.
+
+The corruption is applied to the STORED verdict hash only. The on-chain
+commitment is left correct, so the browser's recomputation and the contract agree
+with each other and the backend's row is the one standing apart — which is the
+finding the trust model predicts, since backend persistence is the layer that can
+quietly rewrite a row and the chain is not.
+
+## Version pinning
+
+Every dependency is pinned to an exact version, not a caret range, so that a
+teammate's install and CI's install produce the same tree. Two choices are worth
+recording:
+
+- **Next 16.3.4, not the 15.x line.** Next 15 pins `postcss@8.4.31`, which
+  carries a high-severity advisory with no patched release inside 15.x;
+  `npm audit` on this workspace reports it. Next 16 pins `postcss@8.5.23` and the
+  same audit comes back clean. Next 16 needs Node 20.9+, which the `>=22`
+  engine already exceeds.
+- **TypeScript 5.9.3, not 7.x.** TypeScript 7 is the native compiler rewrite.
+  Next's editor plugin and its generated `.next/types` are validated against the
+  5.x checker, and a toolchain commit is the wrong place to absorb a compiler
+  rewrite. Revisit once Next declares support.
+
+## Deliberate deviations
+
+Recorded here so a reviewer comparing this workspace against the root README and
+the spec finds the reasoning rather than an inconsistency.
+
+**The package name stays `@arbiter/frontend`.** The root README calls it
+`@arbitra/frontend`. Renaming it would mean editing the root `package.json`
+workspace scripts and every teammate's `--workspace=` invocation, for no
+user-visible gain, and would land a cross-workspace rename inside a frontend
+commit. The root README's spelling is the outlier; this manifest matches the
+other four workspaces' `@arbiter/*` scope.
+
+**Source lives under `src/`.** So `src/app/`, `src/components/`, `src/lib/`
+rather than a top-level `app/`. Next.js supports both natively. `src/` keeps the
+application code separable from the workspace's config and gate scripts, which
+matters here because `scripts/check-copy.mjs` and `scripts/check-design.mjs`
+scan a source corpus and need that corpus to have a boundary. It also preserves
+the shape of the structure sketch teammates were handed. The `@/*` path alias in
+`tsconfig.json` resolves to `./src/*`, so imports do not carry the prefix.
+
+**Tailwind v4, so `tailwind.config.ts` is nearly empty.** v4 moved the token
+layer into CSS: the type scale, colours, and rule tokens are declared in a
+`@theme` block in `src/app/globals.css`, and template discovery is automatic.
+The config file is retained because the design's directory layout names it, but
+it is not loaded unless `globals.css` declares a `@config` directive, which it
+does not. Read `globals.css` to find the tokens. `postcss.config.mjs` is the one
+config file the design's layout does not list; Tailwind v4 needs it to register
+its single PostCSS plugin.
+
+**`next-env.d.ts` is git-ignored.** Next regenerates it on every `dev` and
+`build`, so tracking it would produce a diff on every run. It is still listed in
+`tsconfig.json`'s `include`, so a local checkout picks up Next's ambient types
+once anything has been run. `typecheck` does not depend on it: no module in this
+workspace imports a static asset, which is the only thing those ambient types
+provide.

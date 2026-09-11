@@ -1,0 +1,43 @@
+/**
+ * The application's two families, loaded through `next/font/google` so the files
+ * are downloaded and self-hosted at build time. No runtime request to a font
+ * CDN, and `next/font` emits a size-adjusted local fallback so the layout does
+ * not shift when the webfont paints.
+ *
+ * `src/app/layout.tsx` (task 2.5) is the only consumer: it puts both `variable`
+ * class names on the document element, which is what makes `--font-grotesk` and
+ * `--font-mono` resolve to real faces. Until then these are declared and unused,
+ * which is expected.
+ */
+import { Archivo, JetBrains_Mono } from 'next/font/google';
+
+/**
+ * Archivo, for prose and interface text. The `wdth` axis is requested because
+ * the `ruling` type step carries `font-stretch: 96%` — the only use of a width
+ * axis anywhere in the application. Without the axis loaded the browser would
+ * synthesise the condensed width, which on a 52px word is visible.
+ */
+export const grotesk = Archivo({
+  subsets: ['latin'],
+  display: 'swap',
+  // `wdth` for the ruling step's 96% stretch. `wght` is supplied by default for
+  // a variable font, and the scale leans on it hard in both directions: body
+  // text sits at 420 rather than 400 to hold its optical weight against
+  // halation, while the display and ruling steps run at 350 and 300, because
+  // light-on-dark type gains apparent weight and a display face that reads
+  // correct on paper reads heavy and smeared once inverted.
+  axes: ['wdth'],
+  variable: '--font-grotesk',
+});
+
+/**
+ * JetBrains Mono, for machine identity data only. Chosen for disambiguation at
+ * small sizes: slashed zero, distinct `1`/`l`/`I`, tall lowercase, so a
+ * 66-character keccak hash stays comparable character by character at the 13px
+ * `record` step. Referenced by `MachineValue` and nothing else.
+ */
+export const mono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-mono',
+});
