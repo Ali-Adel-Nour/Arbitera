@@ -89,12 +89,43 @@ export async function markDealResolved(
   });
 }
 
+export async function persistPreimage(
+  dealId: string,
+  criteria?: string[],
+  deliverable?: string
+): Promise<void> {
+  const updateData: any = {};
+  const createData: any = { dealId };
+
+  if (criteria !== undefined) {
+    updateData.criteriaText = JSON.stringify(criteria);
+    createData.criteriaText = JSON.stringify(criteria);
+  }
+  if (deliverable !== undefined) {
+    updateData.deliverableText = deliverable;
+    createData.deliverableText = deliverable;
+  }
+
+  await prisma.escrowDeal.upsert({
+    where: { dealId },
+    update: updateData,
+    create: createData,
+  });
+}
+
 export async function readPersistedDeals(
   sellerAddress: string
 ): Promise<PersistedDeal[]> {
   return prisma.escrowDeal.findMany({
     where: { sellerAddress, aiVerdict: { not: null } },
     orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function readAllPersistedDeals(): Promise<PersistedDeal[]> {
+  return prisma.escrowDeal.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100, // Limit to recent deals
   });
 }
 
