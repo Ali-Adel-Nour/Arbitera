@@ -202,6 +202,11 @@ export const ENDPOINTS = {
   /* -- Pinned. --------------------------------------------------------- */
 
   /**
+   * `POST /api/preimage` → persists frontend plaintext to backend
+   */
+  preimage: { path: () => `/api/preimage`, origin: 'backend' },
+
+  /**
    * `POST /api/judge-and-settle` → `JudgeAndSettleResponse`.
    *
    * NEVER `backend`, and `pinned` so that no environment variable can make it

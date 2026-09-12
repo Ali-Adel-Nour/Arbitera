@@ -26,7 +26,7 @@ export const grotesk = Archivo({
   // halation, while the display and ruling steps run at 350 and 300, because
   // light-on-dark type gains apparent weight and a display face that reads
   // correct on paper reads heavy and smeared once inverted.
-  axes: ['wdth'],
+  axes: ['wdth', 'wght'],
   variable: '--font-grotesk',
 });
 
@@ -39,5 +39,5 @@ export const grotesk = Archivo({
 export const mono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-mono',
+  variable: '--font-jetbrains',
 });
