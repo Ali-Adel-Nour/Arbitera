@@ -35,6 +35,7 @@
  */
 
 import { markPersisted, type PersistedCriteria, type PersistedDeliverable } from '@/lib/persisted';
+import { resolve, ENDPOINTS } from '@/services/endpoints';
 
 /** Namespaced so this cannot collide with anything else on the origin. */
 const KEY_PREFIX = 'arbitra:preimage:';
@@ -78,7 +79,16 @@ export function persistCriteria(
       return null;
     }
 
-    return markPersisted(parsed as readonly string[]);
+    const branded = markPersisted(parsed as readonly string[]);
+    
+    // Non-blocking sync to backend
+    fetch(resolve(ENDPOINTS.preimage), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dealId, criteria })
+    }).catch((e) => console.error('Failed to sync criteria preimage to backend', e));
+
+    return branded;
   } catch {
     // A quota failure or a serialisation failure both mean the text is not stored.
     return null;
@@ -97,7 +107,18 @@ export function persistDeliverable(
     store.setItem(deliverableKey(dealId), deliverable);
 
     const raw = store.getItem(deliverableKey(dealId));
-    return raw === null ? null : markPersisted(raw);
+    if (raw === null) return null;
+    
+    const branded = markPersisted(raw);
+    
+    // Non-blocking sync to backend
+    fetch(resolve(ENDPOINTS.preimage), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dealId, deliverable })
+    }).catch((e) => console.error('Failed to sync deliverable preimage to backend', e));
+    
+    return branded;
   } catch {
     return null;
   }

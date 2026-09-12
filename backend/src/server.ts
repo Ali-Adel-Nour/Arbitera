@@ -10,10 +10,11 @@ import {
 } from "./ai-judge/index.js";
 import { settleEscrow } from "./oracle.js";
 import { getReputation } from "./reputation.js";
-import { markDealResolved } from "./persistence.js";
+import { markDealResolved, persistPreimage, readAllPersistedDeals } from "./persistence.js";
 import { readPersistedJudgment } from "./persistence.js";
-import { verifyVerdictHash } from "./ai-judge/verdict.js";
+import { verifyVerdictHash, hashCanonicalValue } from "./ai-judge/verdict.js";
 import { startResilientOracle } from "./blockchain/eventListener.js";
+import { escrowContract } from "./blockchain/contractClient.js";
 
 export const settlementGateway = { settleEscrow };
 
@@ -237,6 +238,102 @@ export const server = createServer(
       return;
     }
 
+    if (request.method === "GET" && request.url === "/api/deals") {
+      try {
+        const persistedDeals = await readAllPersistedDeals();
+        
+        const validDealsPromises = [];
+        const seenIds = new Set<string>();
+        for (const d of persistedDeals) {
+          const dealId = d.dealId.trim();
+          // The frontend requires dealId to be exactly a non-zero 32-byte hex.
+          if (!/^0x[0-9a-fA-F]{64}$/.test(dealId) || /^0x0{64}$/.test(dealId)) {
+            continue; // Skip mock slugs like "deal-fail" or invalid formats
+          }
+          // Deduplicate by trimmed dealId (prevents React duplicate-key errors)
+          if (seenIds.has(dealId)) continue;
+          seenIds.add(dealId);
+
+          let state = d.state || "Created";
+          if (state === "JUDGED") state = "Submitted";
+          if (state === "RESOLVED") {
+            state = d.aiVerdict ? "ResolvedSuccess" : "ResolvedRefund";
+          }
+
+          let verdictReasoningHash = null;
+          if (d.resolvedTxHash && /^0x[0-9a-fA-F]{64}$/.test(d.resolvedTxHash)) {
+            verdictReasoningHash = d.resolvedTxHash;
+          }
+
+          const isValidAddress = (val: string) => /^0x[0-9a-fA-F]{40}$/.test(val);
+          const buyer = (d.buyerAddress && isValidAddress(d.buyerAddress)) 
+            ? d.buyerAddress 
+            : "0x0000000000000000000000000000000000000000";
+          const seller = (d.sellerAddress && isValidAddress(d.sellerAddress)) 
+            ? d.sellerAddress 
+            : "0x0000000000000000000000000000000000000000";
+
+          // judgeRequestedAt means "in flight NOW", not "was requested once".
+          // Only set it when the deal is awaiting a verdict that hasn't arrived
+          // yet. A JUDGED deal with aiVerdict already set has finished
+          // deliberating — the oracle just hasn't settled it on-chain yet.
+          const judgeInFlight =
+            d.state === "JUDGED" && d.aiVerdict === null && state === "Submitted";
+
+          validDealsPromises.push((async () => {
+            let amount = "10000000"; // Fallback 10 USDC
+            let token = "0x3600000000000000000000000000000000000000";
+            
+            try {
+              const onChainDeal = await escrowContract.escrows(dealId);
+              if (onChainDeal && onChainDeal.amount !== undefined && onChainDeal.amount > 0n) {
+                amount = onChainDeal.amount.toString();
+                token = onChainDeal.token;
+              }
+            } catch (err) {
+              console.warn("Failed to fetch on-chain amount for deal:", dealId);
+            }
+
+            return {
+              dealId,
+              buyer,
+              seller,
+              token,
+              amount,
+              criteriaHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+              deadline: d.deadline ? d.deadline.toISOString() : new Date().toISOString(),
+              state,
+              deliverableHash: null,
+              verdictReasoningHash,
+              ...(judgeInFlight ? { judgeRequestedAt: d.createdAt.toISOString() } : {})
+            };
+          })());
+        }
+        
+        const validDeals = await Promise.all(validDealsPromises);
+
+        sendJson(response, 200, {
+          deals: validDeals,
+          asOf: new Date().toISOString()
+        });
+      } catch (error) {
+        sendJson(response, 500, {
+          error: error instanceof Error ? error.message : "Unable to read deals",
+        });
+      }
+      return;
+    }
+
+    if (request.method === "GET" && request.url === "/api/agents") {
+      sendJson(response, 200, { agents: [], asOf: new Date().toISOString() });
+      return;
+    }
+
+    if (request.method === "GET" && request.url === "/api/mcp-activity") {
+      sendJson(response, 200, { entries: [], asOf: new Date().toISOString() });
+      return;
+    }
+
     if (request.method === "GET" && request.url?.startsWith("/api/reputation/")) {
       let agent: string;
       try {
@@ -255,6 +352,42 @@ export const server = createServer(
         sendJson(response, 200, await getReputation(agent));
       } catch (error) {
         sendJson(response, 500, { error: error instanceof Error ? error.message : "Unable to read reputation" });
+      }
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/api/preimage") {
+      try {
+        const body = await readJsonBody(request);
+        if (typeof body !== "object" || body === null) {
+          sendJson(response, 400, { error: "Invalid body" });
+          return;
+        }
+        
+        const { dealId, criteria, deliverable } = body as Record<string, any>;
+        if (typeof dealId !== "string" || !dealId.trim()) {
+          sendJson(response, 400, { error: "dealId is required" });
+          return;
+        }
+
+        let parsedCriteria: string[] | undefined;
+        if (typeof criteria === "string") {
+          try {
+            parsedCriteria = JSON.parse(criteria);
+            if (!Array.isArray(parsedCriteria)) parsedCriteria = undefined;
+          } catch {
+            parsedCriteria = undefined;
+          }
+        } else if (Array.isArray(criteria)) {
+          parsedCriteria = criteria;
+        }
+
+        await persistPreimage(dealId, parsedCriteria, typeof deliverable === "string" ? deliverable : undefined);
+        sendJson(response, 200, { success: true });
+      } catch (error) {
+        sendJson(response, 500, {
+          error: error instanceof Error ? error.message : "Unable to persist preimage",
+        });
       }
       return;
     }
@@ -447,6 +580,45 @@ export const server = createServer(
         });
       }
 
+      return;
+    }
+    if (request.method === "GET" && request.url?.startsWith("/api/judgments/")) {
+      let dealId: string;
+      try {
+        const path = new URL(request.url, "http://localhost").pathname;
+        dealId = decodeURIComponent(path.slice("/api/judgments/".length));
+      } catch {
+        sendJson(response, 400, { success: false, error: "Deal ID must be URL encoded" });
+        return;
+      }
+
+      if (!dealId.trim()) {
+        sendJson(response, 400, { success: false, error: "Deal ID is required" });
+        return;
+      }
+
+      try {
+        const record = await readPersistedJudgment(dealId);
+        if (!record) {
+          sendJson(response, 404, { success: false, error: "Judgment not found" });
+          return;
+        }
+
+        const rubricHash = hashCanonicalValue(record.acceptanceCriteria);
+        const deliverableHash = hashCanonicalValue(record.deliverable);
+        const verified = verifyVerdictHash(record);
+
+        const judgmentResponse = {
+          ...record,
+          rubricHash,
+          deliverableHash,
+          verified
+        };
+
+        sendJson(response, 200, judgmentResponse);
+      } catch (error) {
+        sendJson(response, 500, { success: false, error: error instanceof Error ? error.message : "Unable to read judgment" });
+      }
       return;
     }
 

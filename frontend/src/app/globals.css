@@ -43,6 +43,7 @@
    * the class is ever missing.
    * ---------------------------------------------------------------------- */
   --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* -------------------------------------------------------------------------
    * Type scale — nine named steps, and only nine.
